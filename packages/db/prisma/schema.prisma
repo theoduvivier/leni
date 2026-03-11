@@ -16,34 +16,33 @@ model Persona {
   faq         Json
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
-  posts       Post[]
   contextLive ContextLive?
+  posts       Post[]
 }
 
 model ContextLive {
   id        String   @id @default(cuid())
   personaId String   @unique
-  persona   Persona  @relation(fields: [personaId], references: [id])
   data      Json
   updatedAt DateTime @updatedAt
+  persona   Persona  @relation(fields: [personaId], references: [id])
 }
 
 model Skill {
-  id         String         @id @default(cuid())
-  nom        String         @unique
+  id         String   @id @default(cuid())
+  nom        String   @unique
   contenu    String
   version    String
   plateforme String
-  actif      Boolean        @default(true)
+  actif      Boolean  @default(true)
   updatedBy  String
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 model Post {
   id          String    @id @default(cuid())
   personaId   String
-  persona     Persona   @relation(fields: [personaId], references: [id])
   type        String
   module      String
   contenu     String
@@ -56,12 +55,12 @@ model Post {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   comments    Comment[]
+  persona     Persona   @relation(fields: [personaId], references: [id])
 }
 
 model Comment {
   id             String   @id @default(cuid())
   postId         String
-  post           Post     @relation(fields: [postId], references: [id])
   externalId     String   @unique
   authorName     String
   authorHeadline String?
@@ -72,6 +71,7 @@ model Comment {
   statut         String   @default("pending")
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  post           Post     @relation(fields: [postId], references: [id])
 
   @@index([postId])
 }
@@ -87,15 +87,15 @@ model Media {
 }
 
 model OAuthToken {
-  id           String   @id @default(cuid())
-  provider     String   @unique
+  id           String    @id @default(cuid())
+  provider     String    @unique
   accessToken  String
   refreshToken String?
   expiresAt    DateTime?
   profileName  String?
   profileImage String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 }
 
 model Job {

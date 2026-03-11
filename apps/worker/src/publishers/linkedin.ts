@@ -34,6 +34,27 @@ export function decryptToken(encryptedData: string): string {
   return decrypted
 }
 
+export async function getLinkedInAccessToken(): Promise<string> {
+  const token = await db.oAuthToken.findUnique({
+    where: { provider: 'linkedin' },
+  })
+
+  if (token) {
+    if (token.expiresAt && token.expiresAt < new Date()) {
+      throw new Error('LinkedIn token expired — reconnect via the dashboard')
+    }
+    return decryptToken(token.accessToken)
+  }
+
+  // Fallback to env var for backwards compatibility
+  const envToken = process.env.LINKEDIN_ACCESS_TOKEN
+  if (envToken) {
+    return envToken
+  }
+
+  throw new Error('LinkedIn not connected — connect via the dashboard')
+}
+
 export function getLinkedInAuthUrl(): string {
   const clientId = process.env.LINKEDIN_CLIENT_ID
   const redirectUri = `${process.env.NEXTAUTH_URL}/api/linkedin/callback`
@@ -82,8 +103,7 @@ export async function publishToLinkedIn(postId: string): Promise<string> {
   if (!post) throw new Error(`Post ${postId} not found`)
   if (post.statut !== 'approved') throw new Error(`Post ${postId} is not approved`)
 
-  const accessToken = process.env.LINKEDIN_ACCESS_TOKEN
-  if (!accessToken) throw new Error('LinkedIn access token not configured')
+  const accessToken = await getLinkedInAccessToken()
 
   // Get user profile for author URN
   const profileRes = await fetch('https://api.linkedin.com/v2/userinfo', {

@@ -1,5 +1,6 @@
 import { db } from '@leni/db'
 import { callClaude } from '../lib/claude'
+import { getLinkedInAccessToken } from '../publishers/linkedin'
 import { z } from 'zod'
 
 const ClaudeReply = z.object({
@@ -32,9 +33,11 @@ interface LinkedInComment {
  * Returns normalized comment objects.
  */
 async function fetchLinkedInComments(postUrn: string): Promise<LinkedInComment[]> {
-  const accessToken = process.env.LINKEDIN_ACCESS_TOKEN
-  if (!accessToken) {
-    log('warn', 'LinkedIn access token not configured — skipping comment fetch')
+  let accessToken: string
+  try {
+    accessToken = await getLinkedInAccessToken()
+  } catch {
+    log('warn', 'LinkedIn not connected — skipping comment fetch')
     return []
   }
 
@@ -209,8 +212,7 @@ export async function replyToComment(commentId: string): Promise<string> {
   if (!comment.draftReply) throw new Error(`Comment ${commentId} has no draft reply`)
   if (!comment.post.externalId) throw new Error(`Post ${comment.postId} has no externalId`)
 
-  const accessToken = process.env.LINKEDIN_ACCESS_TOKEN
-  if (!accessToken) throw new Error('LinkedIn access token not configured')
+  const accessToken = await getLinkedInAccessToken()
 
   // Get author URN
   const profileRes = await fetch('https://api.linkedin.com/v2/userinfo', {
