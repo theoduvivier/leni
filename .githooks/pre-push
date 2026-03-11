@@ -1,0 +1,8 @@
+#!/bin/sh
+echo "Running typecheck before push..."
+pnpm typecheck
+if [ $? -ne 0 ]; then
+  echo "Typecheck failed. Push aborted."
+  exit 1
+fi
+echo "Typecheck passed."

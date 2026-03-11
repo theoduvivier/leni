@@ -10,6 +10,9 @@
       "persistent": true
     },
     "lint": {},
+    "typecheck": {
+      "dependsOn": ["^db:generate"]
+    },
     "db:generate": {
       "cache": false
     },
