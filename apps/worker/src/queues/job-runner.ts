@@ -1,4 +1,4 @@
-import { db } from '@leni/db'
+import { db, Prisma } from '@leni/db'
 import { generatePost } from '../agents/content-agent'
 import { publishToLinkedIn } from '../publishers/linkedin'
 
@@ -71,6 +71,6 @@ export async function processJobs() {
 
 export async function enqueueJob(type: string, data: Record<string, unknown>, runAt?: Date) {
   return db.job.create({
-    data: { type, data, runAt: runAt ?? new Date() },
+    data: { type, data: data as Prisma.InputJsonValue, runAt: runAt ?? new Date() },
   })
 }
