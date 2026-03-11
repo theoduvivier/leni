@@ -15,6 +15,10 @@ COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
 COPY --from=deps /app/packages/db/node_modules ./packages/db/node_modules
 COPY . .
 RUN pnpm --filter @leni/db db:generate
+# Collect Prisma engine files into a known location before build
+RUN mkdir -p /prisma-engine && \
+    find /app/node_modules -name "libquery_engine-linux-musl*" -exec cp {} /prisma-engine/ \; && \
+    find /app/node_modules -name "schema.prisma" -path "*/.prisma/client/*" -exec cp {} /prisma-engine/ \;
 RUN pnpm --filter @leni/web build
 
 FROM base AS runner
@@ -25,8 +29,7 @@ COPY --from=builder /app/apps/web/.next/standalone ./
 COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder /app/apps/web/public ./apps/web/public
 # Copy Prisma query engine for linux-musl (Alpine)
-COPY --from=builder /app/node_modules/.pnpm/@prisma+client@*/node_modules/.prisma/client/*.so.node ./node_modules/.prisma/client/
-COPY --from=builder /app/node_modules/.pnpm/@prisma+client@*/node_modules/.prisma/client/schema.prisma ./node_modules/.prisma/client/
+COPY --from=builder /prisma-engine/ ./node_modules/.prisma/client/
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000
