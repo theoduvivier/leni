@@ -15,10 +15,11 @@ COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
 COPY --from=deps /app/packages/db/node_modules ./packages/db/node_modules
 COPY . .
 RUN pnpm --filter @leni/db db:generate
-# Collect Prisma engine files into a known location before build
+# Collect Prisma engine + schema into a known location
 RUN mkdir -p /prisma-engine && \
     find /app/node_modules -name "libquery_engine-linux-musl*" -exec cp {} /prisma-engine/ \; && \
-    find /app/node_modules -name "schema.prisma" -path "*/.prisma/client/*" -exec cp {} /prisma-engine/ \;
+    find /app/node_modules -name "schema.prisma" -path "*/.prisma/client/*" -exec cp {} /prisma-engine/ \; && \
+    echo "=== Prisma engine files ===" && ls -la /prisma-engine/
 RUN pnpm --filter @leni/web build
 
 FROM base AS runner
@@ -28,9 +29,9 @@ RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
 COPY --from=builder /app/apps/web/.next/standalone ./
 COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder /app/apps/web/public ./apps/web/public
-# Copy Prisma query engine to all searched locations
-COPY --from=builder /prisma-engine/ ./apps/web/.next/server/
-COPY --from=builder /prisma-engine/ ./node_modules/.prisma/client/
+# Copy Prisma query engine to a fixed location and point Prisma to it
+COPY --from=builder /prisma-engine/ /prisma-engine/
+ENV PRISMA_QUERY_ENGINE_LIBRARY=/prisma-engine/libquery_engine-linux-musl-openssl-3.0.x.so.node
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000
