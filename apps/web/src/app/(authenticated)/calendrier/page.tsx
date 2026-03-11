@@ -63,8 +63,9 @@ export default function CalendrierPage() {
     setLoading(true)
     try {
       const res = await fetch(`/api/calendar?start=${weekStart.toISOString()}`)
+      if (!res.ok) return
       const json = await res.json()
-      setData(json)
+      if (json.posts) setData(json)
     } catch {
       // silently fail
     }
