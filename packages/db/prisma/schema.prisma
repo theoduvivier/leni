@@ -38,16 +38,6 @@ model Skill {
   updatedBy  String
   createdAt  DateTime       @default(now())
   updatedAt  DateTime       @updatedAt
-  history    SkillHistory[]
-}
-
-model SkillHistory {
-  id        String   @id @default(cuid())
-  skillId   String
-  skill     Skill    @relation(fields: [skillId], references: [id])
-  contenu   String
-  version   String
-  createdAt DateTime @default(now())
 }
 
 model Post {
@@ -65,43 +55,25 @@ model Post {
   externalId  String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  comments    Comment[]
 }
 
-model VeilleItem {
-  id        String   @id @default(cuid())
-  source    String
-  titre     String
-  url       String
-  contenu   String?
-  score     Int
-  persona   String
-  statut    String
-  createdAt DateTime @default(now())
-}
+model Comment {
+  id             String   @id @default(cuid())
+  postId         String
+  post           Post     @relation(fields: [postId], references: [id])
+  externalId     String   @unique
+  authorName     String
+  authorHeadline String?
+  contenu        String
+  isQuestion     Boolean  @default(false)
+  isProspect     Boolean  @default(false)
+  draftReply     String?
+  statut         String   @default("pending")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-model InboxMessage {
-  id           String   @id @default(cuid())
-  platform     String
-  externalId   String   @unique
-  senderName   String
-  senderRole   String?
-  contenu      String
-  categorie    String?
-  draftReponse String?
-  statut       String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-}
-
-model AlgoRule {
-  id         String   @id @default(cuid())
-  plateforme String
-  regle      String
-  valeur     String
-  source     String
-  confiance  String
-  actif      Boolean  @default(true)
-  createdAt  DateTime @default(now())
+  @@index([postId])
 }
 
 model Media {
