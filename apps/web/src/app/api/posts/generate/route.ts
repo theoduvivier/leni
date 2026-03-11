@@ -4,9 +4,13 @@ import { db } from '@leni/db'
 
 const GenerateBody = z.object({
   personaSlug: z.enum(['flipio', 'mdb']),
-  type: z.enum(['post_texte', 'comment_trigger', 'ghostwriter', 'post_image']),
+  type: z.enum(['post_texte', 'comment_trigger', 'ghostwriter', 'post_image', 'deal_case_study', 'instagram_caption', 'instagram_story']),
   platform: z.enum(['linkedin', 'instagram']),
   brief: z.string().min(10, 'Le brief doit faire au moins 10 caractères'),
+  dealCity: z.string().optional(),
+  dealStrategy: z.string().optional(),
+  dealMetric: z.string().optional(),
+  mediaIds: z.array(z.string()).optional(),
 })
 
 export async function POST(request: Request) {
@@ -23,6 +27,10 @@ export async function POST(request: Request) {
           type: data.type,
           platform: data.platform,
           brief: data.brief,
+          ...(data.dealCity ? { dealCity: data.dealCity } : {}),
+          ...(data.dealStrategy ? { dealStrategy: data.dealStrategy } : {}),
+          ...(data.dealMetric ? { dealMetric: data.dealMetric } : {}),
+          ...(data.mediaIds ? { mediaIds: data.mediaIds } : {}),
         },
       },
     })

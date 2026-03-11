@@ -11,8 +11,6 @@ const skillFiles = [
   { file: 'linkedin_ghostwriter.md', nom: 'linkedin_ghostwriter', plateforme: 'linkedin' },
   { file: 'instagram_caption.md', nom: 'instagram_caption', plateforme: 'instagram' },
   { file: 'instagram_story.md', nom: 'instagram_story', plateforme: 'instagram' },
-  { file: 'inbox_reply.md', nom: 'inbox_reply', plateforme: 'all' },
-  { file: 'veille_scoring.md', nom: 'veille_scoring', plateforme: 'all' },
 ]
 
 export async function seedSkills() {

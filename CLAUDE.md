@@ -4,23 +4,22 @@
 
 Leni est un agent de présence en ligne qui tourne 24h/24 sur un VPS.
 Il gère deux personas (Flipio et MdB perso), génère du contenu LinkedIn/Instagram,
-publie automatiquement, répond aux messages, et s'améliore seul en suivant les algorithmes.
+publie automatiquement, et surveille les commentaires.
 
 Deux modes :
-- **Pilote automatique** : veille, génération, publication sans intervention
+- **Pilote automatique** : génération, publication sans intervention
 - **Mode assisté** : tu fournis un brief ou un media, tu valides, l'agent publie
 
 ## Stack
 
 - **Frontend** : Next.js 14 App Router — dashboard de contrôle (port 3000)
 - **Worker** : Node.js + TypeScript — agents, crons, publishers (port 3001)
-- **Queue** : BullMQ + Redis
+- **Queue** : DB polling (Job table + setInterval 10s)
 - **ORM** : Prisma + PostgreSQL
 - **IA** : Claude API — modèle `claude-sonnet-4-20250514`
 - **Media** : Sharp.js (traitement images, overlay texte stories)
 - **Photos stock** : Pexels API (gratuit)
-- **Email** : Brevo API (gratuit jusqu'à 300/jour)
-- **Infra** : VPS Hostinger / Dokploy — PostgreSQL service dédié + Redis
+- **Infra** : VPS Hostinger / Dokploy — PostgreSQL service dédié
 
 ## Structure monorepo
 
@@ -42,9 +41,8 @@ leni/
 │   │   └── package.json
 │   └── worker/               (Agent Node.js)
 │       ├── src/
-│       │   ├── agents/       (content-agent, watch-agent, inbox-agent)
+│       │   ├── agents/       (content-agent, viral-agent, comment-agent)
 │       │   ├── publishers/   (linkedin.ts, instagram.ts)
-│       │   ├── watchers/     (algorithm-watcher.ts, veille.ts)
 │       │   ├── crons/        (scheduler.ts)
 │       │   └── skills/       (fichiers .md des skills dynamiques)
 │       └── package.json
@@ -89,12 +87,6 @@ Génère et publie des posts LinkedIn et Instagram.
 - Output : post LinkedIn (texte ± image), caption Instagram + hashtags, Story verticale
 - Utilise : Pexels API si aucun media fourni, Sharp.js pour Story
 
-### M02 — Veille & Trending (Core)
-Scrape quotidiennement les sources immo, Claude score et sélectionne.
-- Sources : RSS (SeLoger, PAP, FNAIM, Le Moniteur, MeilleursAgents), Légifrance RSS, Reddit r/immobilier r/investissement
-- Cron : 6h quotidien
-- Score Claude 0–10 : >7 → queue auto, 5–7 → digest manuel, <5 → ignoré
-
 ### M03 — Carnet de Deal (Core)
 Upload photos avant/après + 3 infos → case study LinkedIn + carrousel Instagram.
 - Input : photos, ville, stratégie, chiffre clé (plus-value ou rendement)
@@ -105,32 +97,20 @@ Posts pédagogiques longs format sur les sujets maîtrisés.
 - Sujets types : analyse immeuble, erreurs MdB débutant, impact DPE, Flipio vs Excel
 - Format : accroche forte + corps listes courtes + CTA adapté au persona
 
-### M05 — Calendrier Éditorial (V2)
+### M05 — Calendrier Éditorial (Core)
 Planification cohérente sur 7 jours. Alterne formats, respecte best practices horaires,
 détecte les trous et propose de les combler.
 
-### M06 — Newsletter Hebdo (V2)
-Résumé veille semaine rédigé par Claude dans la voix du persona.
-Envoi via Brevo. Contenu recyclé depuis les posts LinkedIn.
-
-### M07 — Réponse Commentaires (V2)
-Polling commentaires LinkedIn. Claude rédige les réponses aux questions techniques.
-Prospects Flipio → draft DM nurturing.
-
-### M08 — Brand Monitoring (V3)
-Google Alerts webhook. Surveille mentions "Flipio" et nom perso.
-Alerte email si réaction nécessaire.
+### M07 — Réponse Commentaires (Core)
+Récupère les commentaires LinkedIn à la demande. Claude génère une réponse pour chaque commentaire.
+- Bouton "Récupérer commentaires" sur la page Posts
+- Bouton "Générer réponse" par commentaire → Claude rédige
+- Publier la réponse sur LinkedIn via API
 
 ### M09 — Viral On-Demand (Core)
 Brief express → 3 variantes de post "comment trigger" avec score viralité estimé.
 - Mécanisme : demander de commenter un mot-clé booste l'algo LinkedIn
 - Output : 3 variantes (polémique / storytelling / chiffre choc) + template DM réponse
-
-### M10 — Inbox Manager (Core)
-Lit messages LinkedIn entrants, classifie, rédige les réponses. Validation batch.
-- Classification : Prospect Flipio / Deal MdB / Networking / Spam / Perso
-- Implémentation : extension Chrome custom → backend VPS
-- Dashboard batch : cocher/ajuster/envoyer en une action
 
 ### M11 — Context Engine (Core)
 Mémoire centrale injectée dans chaque prompt Claude.
@@ -139,13 +119,6 @@ Mémoire centrale injectée dans chaque prompt Claude.
 - Règles de réponse en langage naturel
 - FAQ / objections par persona
 - Mise à jour depuis le dashboard
-
-### M12 — Algorithm Watcher (Core)
-Cron hebdo (lundi 8h). Scrape sources algo LinkedIn/Instagram.
-Met à jour les skills dynamiques automatiquement.
-- Sources : blog officiel LinkedIn/Meta, Richard van der Blom, Justin Welsh, Later Blog, Adam Mosseri
-- Niveaux de confiance : haute (auto) / moyenne (validation) / faible (surveillance)
-- Skills versionnés avec rollback possible
 
 ## Skills Dynamiques
 
@@ -169,8 +142,8 @@ Skills initiaux dans `apps/worker/src/skills/` :
 - `linkedin_ghostwriter.md`
 - `instagram_caption.md`
 - `instagram_story.md`
-- `inbox_reply.md`
-- `veille_scoring.md`
+- `deal_case_study.md`
+- `comment_reply.md`
 
 ## Schema Prisma
 
@@ -233,43 +206,25 @@ model Post {
   externalId  String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  comments    Comment[]
 }
 
-model VeilleItem {
-  id        String   @id @default(cuid())
-  source    String
-  titre     String
-  url       String
-  contenu   String?
-  score     Int
-  persona   String
-  statut    String
-  createdAt DateTime @default(now())
-}
+model Comment {
+  id             String   @id @default(cuid())
+  postId         String
+  post           Post     @relation(fields: [postId], references: [id])
+  externalId     String   @unique
+  authorName     String
+  authorHeadline String?
+  contenu        String
+  isQuestion     Boolean  @default(false)
+  isProspect     Boolean  @default(false)
+  draftReply     String?
+  statut         String   @default("pending")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-model InboxMessage {
-  id           String   @id @default(cuid())
-  platform     String
-  externalId   String   @unique
-  senderName   String
-  senderRole   String?
-  contenu      String
-  categorie    String?
-  draftReponse String?
-  statut       String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-}
-
-model AlgoRule {
-  id         String   @id @default(cuid())
-  plateforme String
-  regle      String
-  valeur     String
-  source     String
-  confiance  String
-  actif      Boolean  @default(true)
-  createdAt  DateTime @default(now())
+  @@index([postId])
 }
 
 model Media {
@@ -283,31 +238,26 @@ model Media {
 }
 ```
 
-## Queues BullMQ
+## Job Types
 
 ```
 content-generation   → générer un post
 publish-linkedin     → publier sur LinkedIn
 publish-instagram    → publier sur Instagram
-veille-scrape        → scraper les sources
-inbox-poll           → récupérer les messages
-algo-watch           → analyser les algos plateforme
+comment-poll         → récupérer les commentaires LinkedIn
+comment-reply        → répondre à un commentaire
 ```
 
 ## Crons
 
 ```
-06:00  quotidien  → veille-scrape
-19:00  quotidien  → inbox-poll
-08:00  lundi      → algo-watch
-08:30  lundi      → digest email hebdo
+(aucun cron actif — toutes les actions sont déclenchées manuellement)
 ```
 
 ## Variables d'environnement
 
 ```
 DATABASE_URL
-REDIS_URL
 ANTHROPIC_API_KEY
 LINKEDIN_CLIENT_ID
 LINKEDIN_CLIENT_SECRET
@@ -317,7 +267,6 @@ META_APP_SECRET
 INSTAGRAM_BUSINESS_ACCOUNT_ID
 INSTAGRAM_ACCESS_TOKEN
 PEXELS_API_KEY
-BREVO_API_KEY
 NEXTAUTH_SECRET
 NEXTAUTH_URL
 ENCRYPTION_KEY
@@ -330,12 +279,12 @@ Tokens OAuth LinkedIn/Meta chiffrés AES-256 en DB.
 
 ## UI / Design
 
-- Glassmorphisme light, mobile-first, optimisé PWA
+- Glassmorphisme dark, mobile-first, optimisé PWA
 - Fond `#eef2ff`, accent `#3b6fff`, teal `#00c4a7`, pink `#ff6b9d`
 - Typo : Bricolage Grotesque (titres) + Instrument Sans (corps)
 - Composants 100% custom Tailwind — aucune lib externe
 - Bottom nav avec FAB central pour composer
-- 4 onglets : Accueil / Veille / Inbox / Contexte
+- 4 onglets : Accueil / Calendrier / Posts / Contexte
 
 ## Règles absolues
 

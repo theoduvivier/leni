@@ -1,5 +1,6 @@
 import { db } from '@leni/db'
 import { processJobs } from './queues/job-runner'
+import { startScheduler } from './crons/scheduler'
 
 const POLL_INTERVAL = 10_000 // 10 secondes
 
@@ -28,6 +29,9 @@ async function main() {
   }, POLL_INTERVAL)
 
   log('info', `Job runner started — polling every ${POLL_INTERVAL / 1000}s`)
+
+  // Start cron scheduler (checks every 60s)
+  startScheduler()
 }
 
 main().catch((err) => {

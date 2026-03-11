@@ -1,16 +1,22 @@
 import { NextResponse } from 'next/server'
 
+function getBaseUrl(request: Request): string {
+  const url = new URL(request.url)
+  return `${url.protocol}//${url.host}`
+}
+
 export async function GET(request: Request) {
   const url = new URL(request.url)
   const code = url.searchParams.get('code')
   const error = url.searchParams.get('error')
+  const baseUrl = getBaseUrl(request)
 
   if (error) {
-    return NextResponse.redirect(new URL(`/?error=${error}`, process.env.NEXTAUTH_URL))
+    return NextResponse.redirect(new URL(`/?error=${error}`, baseUrl))
   }
 
   if (!code) {
-    return NextResponse.redirect(new URL('/?error=no_code', process.env.NEXTAUTH_URL))
+    return NextResponse.redirect(new URL('/?error=no_code', baseUrl))
   }
 
   try {
@@ -20,7 +26,7 @@ export async function GET(request: Request) {
       body: new URLSearchParams({
         grant_type: 'authorization_code',
         code,
-        redirect_uri: `${process.env.NEXTAUTH_URL}/api/linkedin/callback`,
+        redirect_uri: `${baseUrl}/api/linkedin/callback`,
         client_id: process.env.LINKEDIN_CLIENT_ID ?? '',
         client_secret: process.env.LINKEDIN_CLIENT_SECRET ?? '',
       }),
@@ -29,20 +35,17 @@ export async function GET(request: Request) {
     if (!tokenRes.ok) {
       const errorText = await tokenRes.text()
       console.error('LinkedIn token exchange failed:', errorText)
-      return NextResponse.redirect(new URL('/?error=token_exchange_failed', process.env.NEXTAUTH_URL))
+      return NextResponse.redirect(new URL('/?error=token_exchange_failed', baseUrl))
     }
 
     const tokenData = await tokenRes.json()
 
     // In production, encrypt and store the token
-    // const encrypted = encryptToken(tokenData.access_token)
-    // await db.setting.upsert(...)
+    console.log('LinkedIn OAuth successful, token received', { expiresIn: tokenData.expires_in })
 
-    console.log('LinkedIn OAuth successful, token received')
-
-    return NextResponse.redirect(new URL('/?linkedin=connected', process.env.NEXTAUTH_URL))
+    return NextResponse.redirect(new URL('/?linkedin=connected', baseUrl))
   } catch (err) {
     console.error('LinkedIn callback error:', err)
-    return NextResponse.redirect(new URL('/?error=callback_failed', process.env.NEXTAUTH_URL))
+    return NextResponse.redirect(new URL('/?error=callback_failed', baseUrl))
   }
 }

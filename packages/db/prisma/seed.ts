@@ -253,58 +253,48 @@ Parler à la première personne, montrer les coulisses.`,
 - Zone de texte : centrée verticalement, padding 80px côtés`,
     },
     {
-      nom: 'inbox_reply',
-      plateforme: 'all',
-      contenu: `# Skill : inbox_reply
+      nom: 'deal_case_study',
+      plateforme: 'linkedin',
+      contenu: `# Skill : deal_case_study
 # Version : 1.0.0
 
-## Classification des messages
+## Rôle
+Rédiger un post LinkedIn narratif à partir d'un deal immobilier terminé.
 
-PROSPECT_FLIPIO : mentionne Flipio, SaaS, outils, logiciel, données immo
-→ Réponse chaleureuse + mention places bêta + lien inscription
-
-DEAL_MDB : parle d'un bien, d'une opération, d'un partenariat immo
-→ Réponse courte + demander les détails du projet
-
-NETWORKING : curiosité générale, veut échanger, pas de demande précise
-→ Réponse courte et chaleureuse + proposer un appel si pertinent
-
-SPAM : démarchage commercial, recrutement, MLM
-→ Déclin poli en 1 phrase
-
-PERSO : contexte personnel, famille, amis
-→ NE PAS GÉNÉRER de réponse, flaguer pour traitement manuel
+## Format
+- 1200-1800 caractères, retour d'expérience terrain
+- Structure : accroche chiffrée → contexte → stratégie → résultats → leçon → CTA
 
 ## Règles
-- Jamais plus de 5 phrases
-- Toujours terminer par une question ou une action
-- Utiliser le prénom de l'interlocuteur
-- Adapter le ton au profil (promoteur ≠ étudiant)
-- Ne jamais promettre ce qui n'est pas dans le Context Engine`,
+- Toujours mentionner la ville et le chiffre clé
+- Ne pas inventer de détails non fournis
+- Adapter le ton au persona (Flipio = angle outil, MdB = angle terrain)`,
     },
     {
-      nom: 'veille_scoring',
+      nom: 'comment_reply',
       plateforme: 'all',
-      contenu: `# Skill : veille_scoring
+      contenu: `# Skill : comment_reply
 # Version : 1.0.0
 
-## Critères de score (0-10)
+## Rôle
+Analyser un commentaire LinkedIn et rédiger une réponse adaptée.
+Objectif : engager la conversation (boost algo) et nurturer les prospects.
 
-+3 : Directement actionnable pour un MdB ou promoteur
-+2 : Réglementation ou fiscalité immo (impact fort)
-+2 : Données de marché chiffrées (prix, volumes, tendances)
-+1 : PropTech / innovation (si pertinent pour Flipio)
-+1 : Sujet qui génère du débat / engagement prévisible
--2 : Sujet déjà traité cette semaine
--3 : Hors scope (résidentiel particulier, viager, international hors France)
+## Classification
+- QUESTION : vraie question → réponse détaillée, experte
+- PROSPECT : intérêt pour Flipio ou deal MdB → réponse chaleureuse + CTA soft
+- COMPLIMENT : valide le contenu → remerciement court + relance
+- DEBAT : challenge ou contredit → argumenté, jamais agressif
+- SPAM : non pertinent → ne pas répondre (null)
 
-## Décision
->7 : Générer un post automatiquement
-5-7 : Soumettre pour validation manuelle
-<5 : Ignorer
+## Règles
+- Maximum 3 phrases
+- Utiliser le prénom de l'auteur
+- Terminer par une question ouverte si naturel
+- Adapter le ton au persona (Flipio = expert tech, MdB = terrain)
 
-## Output attendu
-JSON : { score: number, raison: string, persona: "flipio" | "mdb" | "both", suggestion_accroche: string }`,
+## Format de sortie
+JSON : { "classification": "question|prospect|compliment|debat|spam", "isQuestion": true/false, "isProspect": true/false, "reply": "string|null", "shouldDM": true/false }`,
     },
   ]
 

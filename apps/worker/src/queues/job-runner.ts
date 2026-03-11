@@ -1,6 +1,9 @@
 import { db, Prisma } from '@leni/db'
 import { generatePost } from '../agents/content-agent'
 import { publishToLinkedIn } from '../publishers/linkedin'
+import { publishToInstagram } from '../publishers/instagram'
+import { generateViral } from '../agents/viral-agent'
+import { pollComments, replyToComment } from '../agents/comment-agent'
 
 type JobHandler = (data: Record<string, unknown>) => Promise<unknown>
 
@@ -12,6 +15,22 @@ const handlers: Record<string, JobHandler> = {
   'publish-linkedin': async (data) => {
     const externalId = await publishToLinkedIn(data.postId as string)
     return { externalId }
+  },
+  'publish-instagram': async (data) => {
+    const externalId = await publishToInstagram(data.postId as string)
+    return { externalId }
+  },
+  'viral-generation': async (data) => {
+    const postIds = await generateViral(data as Parameters<typeof generateViral>[0])
+    return { postIds }
+  },
+  'comment-poll': async () => {
+    const result = await pollComments()
+    return result
+  },
+  'comment-reply': async (data) => {
+    const commentId = await replyToComment(data.commentId as string)
+    return { commentId }
   },
 }
 
