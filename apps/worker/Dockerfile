@@ -16,4 +16,4 @@ WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=builder /app .
 EXPOSE 3001
-CMD ["node", "apps/worker/dist/index.js"]
+CMD ["sh", "-c", "cd packages/db && npx prisma db push --skip-generate && cd /app && node apps/worker/dist/index.js"]
