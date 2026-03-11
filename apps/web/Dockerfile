@@ -24,6 +24,9 @@ RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
 COPY --from=builder /app/apps/web/.next/standalone ./
 COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder /app/apps/web/public ./apps/web/public
+# Copy Prisma query engine for linux-musl (Alpine)
+COPY --from=builder /app/node_modules/.pnpm/@prisma+client@*/node_modules/.prisma/client/*.so.node ./node_modules/.prisma/client/
+COPY --from=builder /app/node_modules/.pnpm/@prisma+client@*/node_modules/.prisma/client/schema.prisma ./node_modules/.prisma/client/
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000
