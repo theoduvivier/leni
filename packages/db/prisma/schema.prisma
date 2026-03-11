@@ -1,0 +1,130 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Persona {
+  id          String       @id @default(cuid())
+  slug        String       @unique
+  nom         String
+  config      Json
+  regles      String
+  faq         Json
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  posts       Post[]
+  contextLive ContextLive?
+}
+
+model ContextLive {
+  id        String   @id @default(cuid())
+  personaId String   @unique
+  persona   Persona  @relation(fields: [personaId], references: [id])
+  data      Json
+  updatedAt DateTime @updatedAt
+}
+
+model Skill {
+  id         String         @id @default(cuid())
+  nom        String
+  contenu    String
+  version    String
+  plateforme String
+  actif      Boolean        @default(true)
+  updatedBy  String
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  history    SkillHistory[]
+}
+
+model SkillHistory {
+  id        String   @id @default(cuid())
+  skillId   String
+  skill     Skill    @relation(fields: [skillId], references: [id])
+  contenu   String
+  version   String
+  createdAt DateTime @default(now())
+}
+
+model Post {
+  id          String    @id @default(cuid())
+  personaId   String
+  persona     Persona   @relation(fields: [personaId], references: [id])
+  type        String
+  module      String
+  contenu     String
+  mediaUrl    String?
+  statut      String
+  publishAt   DateTime?
+  publishedAt DateTime?
+  platform    String
+  externalId  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model VeilleItem {
+  id        String   @id @default(cuid())
+  source    String
+  titre     String
+  url       String
+  contenu   String?
+  score     Int
+  persona   String
+  statut    String
+  createdAt DateTime @default(now())
+}
+
+model InboxMessage {
+  id           String   @id @default(cuid())
+  platform     String
+  externalId   String   @unique
+  senderName   String
+  senderRole   String?
+  contenu      String
+  categorie    String?
+  draftReponse String?
+  statut       String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model AlgoRule {
+  id         String   @id @default(cuid())
+  plateforme String
+  regle      String
+  valeur     String
+  source     String
+  confiance  String
+  actif      Boolean  @default(true)
+  createdAt  DateTime @default(now())
+}
+
+model Media {
+  id        String   @id @default(cuid())
+  filename  String
+  path      String
+  type      String
+  size      Int
+  postId    String?
+  createdAt DateTime @default(now())
+}
+
+model Job {
+  id        String   @id @default(cuid())
+  type      String
+  data      Json
+  status    String   @default("pending")
+  result    Json?
+  error     String?
+  attempts  Int      @default(0)
+  runAt     DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, runAt])
+}
