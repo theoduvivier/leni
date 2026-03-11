@@ -30,7 +30,7 @@ model ContextLive {
 
 model Skill {
   id         String         @id @default(cuid())
-  nom        String
+  nom        String         @unique
   contenu    String
   version    String
   plateforme String

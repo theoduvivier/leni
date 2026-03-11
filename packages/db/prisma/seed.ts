@@ -102,6 +102,227 @@ async function main() {
   })
 
   console.log('Seeded personas:', flipio.slug, mdb.slug)
+
+  // Skills
+  const skills = [
+    {
+      nom: 'linkedin_post_texte',
+      plateforme: 'linkedin',
+      contenu: `# Skill : linkedin_post_texte
+# Version : 1.0.0
+
+## Règles de format
+- Longueur : 900–1100 caractères
+- Hashtags : 0 à 3 maximum, intégrés naturellement
+- Une idée = une ligne courte
+- Emojis : 1–2 maximum si naturels
+
+## Structure obligatoire
+1. ACCROCHE (ligne 1) : contre-intuitive ou chiffre choc
+2. CORPS : 6–9 lignes courtes, rythme punchy
+3. CTA FINAL : une seule action demandée
+
+## À éviter
+- Superlatifs vides (révolutionnaire, incroyable...)
+- Post qui commence par "Je"
+- Plus de 2 phrases longues consécutives
+- Jargon sans explication`,
+    },
+    {
+      nom: 'linkedin_post_image',
+      plateforme: 'linkedin',
+      contenu: `# Skill : linkedin_post_image
+# Version : 1.0.0
+
+## Règles de format
+- Texte accompagnant : 600–900 caractères (plus court qu'un post texte seul)
+- L'image doit porter le message principal — le texte contextualise
+- Hashtags : 0 à 2 maximum
+
+## Structure obligatoire
+1. ACCROCHE (ligne 1) : référence visuelle à l'image
+2. CORPS : 4–6 lignes, complémentaire à l'image
+3. CTA FINAL : une action ou question
+
+## Consignes image
+- Format recommandé : 1200x627px (paysage) ou 1080x1080 (carré)
+- Texte sur image : lisible, max 7 mots
+- Couleurs contrastées pour la lisibilité mobile`,
+    },
+    {
+      nom: 'linkedin_comment_trigger',
+      plateforme: 'linkedin',
+      contenu: `# Skill : linkedin_comment_trigger
+# Version : 1.0.0
+
+## Principe
+L'algorithme LinkedIn booste les posts avec beaucoup de commentaires.
+Demander de commenter un mot-clé est du growth hacking natif.
+
+## Structure obligatoire
+1. ACCROCHE forte (1 ligne, parfois fausse polémique)
+2. CORPS : 8–12 lignes, monter la tension progressive
+3. PROMESSE : ce que reçoit la personne qui commente
+4. CTA : "Commentez [MOT_CLÉ] et je vous envoie [LIVRABLE]"
+
+## 3 variantes à toujours générer
+- Polémique douce : commence par une affirmation forte et contestable
+- Storytelling : commence par "J'ai..." avec une situation réelle
+- Chiffre choc : commence par un nombre surprenant
+
+## Score de viralité (0-10)
+Évaluer chaque variante sur :
+- Force de l'accroche (3 pts)
+- Clarté de la promesse (3 pts)
+- Urgence / FOMO (2 pts)
+- Simplicité du CTA (2 pts)`,
+    },
+    {
+      nom: 'linkedin_ghostwriter',
+      plateforme: 'linkedin',
+      contenu: `# Skill : linkedin_ghostwriter
+# Version : 1.0.0
+
+## Format
+- Longueur : 1500–2200 caractères
+- Post pédagogique long format
+- Structure claire avec sauts de ligne aérés
+
+## Structure obligatoire
+1. ACCROCHE : affirmation forte ou question provocatrice
+2. CONTEXTE : 2-3 lignes pour poser le sujet
+3. CORPS : 5-7 points développés, chacun sur 1-2 lignes
+4. LEÇON / TAKEAWAY : résumé actionnable
+5. CTA : question ouverte pour engagement
+
+## Sujets types
+- Analyse d'un immeuble (chiffres réels)
+- Erreurs fréquentes MdB débutant
+- Impact DPE / réglementation
+- Flipio vs outils classiques (Excel, etc.)
+- Retour d'expérience terrain
+
+## Ton
+- Expert mais accessible
+- Chiffres concrets obligatoires
+- Pas de condescendance
+- Autorité naturelle (expérience terrain)`,
+    },
+    {
+      nom: 'instagram_caption',
+      plateforme: 'instagram',
+      contenu: `# Skill : instagram_caption
+# Version : 1.0.0
+
+## Format
+- Longueur : 150–300 caractères pour la partie visible
+- Structure : phrase d'accroche → 2-3 lignes → hashtags en fin
+- Hashtags : 20–30, mix niche + populaires
+- Emojis : utilisés librement, 1 par idée max
+
+## Hashtags immo recommandés (à adapter)
+#immobilier #investissementimmobilier #marchanddebiens
+#immobilierfrancais #investir #patrimoine #paris #idf
+#renovation #division #flipimmo
+
+## Ton
+Plus personnel et visuel que LinkedIn.
+Parler à la première personne, montrer les coulisses.`,
+    },
+    {
+      nom: 'instagram_story',
+      plateforme: 'instagram',
+      contenu: `# Skill : instagram_story
+# Version : 1.0.0
+
+## Format
+- Image verticale 1080x1920px
+- Texte overlay : max 3 lignes, gros, lisible
+- Fond : photo flouttée ou couleur unie
+- Durée attention : 3 secondes max
+
+## Structure
+1. TITRE CHOC : 3-5 mots max, gros
+2. SOUS-TITRE : 1 ligne contextuelle
+3. CTA : swipe up / lien / DM
+
+## Consignes Sharp.js
+- Police : bold, sans-serif
+- Taille titre : 64px minimum
+- Couleur texte : blanc avec ombre portée
+- Zone de texte : centrée verticalement, padding 80px côtés`,
+    },
+    {
+      nom: 'inbox_reply',
+      plateforme: 'all',
+      contenu: `# Skill : inbox_reply
+# Version : 1.0.0
+
+## Classification des messages
+
+PROSPECT_FLIPIO : mentionne Flipio, SaaS, outils, logiciel, données immo
+→ Réponse chaleureuse + mention places bêta + lien inscription
+
+DEAL_MDB : parle d'un bien, d'une opération, d'un partenariat immo
+→ Réponse courte + demander les détails du projet
+
+NETWORKING : curiosité générale, veut échanger, pas de demande précise
+→ Réponse courte et chaleureuse + proposer un appel si pertinent
+
+SPAM : démarchage commercial, recrutement, MLM
+→ Déclin poli en 1 phrase
+
+PERSO : contexte personnel, famille, amis
+→ NE PAS GÉNÉRER de réponse, flaguer pour traitement manuel
+
+## Règles
+- Jamais plus de 5 phrases
+- Toujours terminer par une question ou une action
+- Utiliser le prénom de l'interlocuteur
+- Adapter le ton au profil (promoteur ≠ étudiant)
+- Ne jamais promettre ce qui n'est pas dans le Context Engine`,
+    },
+    {
+      nom: 'veille_scoring',
+      plateforme: 'all',
+      contenu: `# Skill : veille_scoring
+# Version : 1.0.0
+
+## Critères de score (0-10)
+
++3 : Directement actionnable pour un MdB ou promoteur
++2 : Réglementation ou fiscalité immo (impact fort)
++2 : Données de marché chiffrées (prix, volumes, tendances)
++1 : PropTech / innovation (si pertinent pour Flipio)
++1 : Sujet qui génère du débat / engagement prévisible
+-2 : Sujet déjà traité cette semaine
+-3 : Hors scope (résidentiel particulier, viager, international hors France)
+
+## Décision
+>7 : Générer un post automatiquement
+5-7 : Soumettre pour validation manuelle
+<5 : Ignorer
+
+## Output attendu
+JSON : { score: number, raison: string, persona: "flipio" | "mdb" | "both", suggestion_accroche: string }`,
+    },
+  ]
+
+  for (const skill of skills) {
+    await db.skill.upsert({
+      where: { nom: skill.nom },
+      update: { contenu: skill.contenu },
+      create: {
+        nom: skill.nom,
+        contenu: skill.contenu,
+        version: '1.0.0',
+        plateforme: skill.plateforme,
+        updatedBy: 'seed',
+      },
+    })
+  }
+
+  console.log('Seeded skills:', skills.map((s) => s.nom).join(', '))
 }
 
 main()
