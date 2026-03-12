@@ -68,7 +68,13 @@ function buildPrompt(validated: GeneratePostInput): string {
     }
 
     parts.push(`\nRédige un ${typeLabel}.`)
-    parts.push('Retourne UNIQUEMENT le texte du post, prêt à publier.')
+
+    if (validated.type === 'comment_trigger') {
+      parts.push('Génère exactement 3 variantes (Polémique / Storytelling / Chiffre choc), séparées par "---".')
+      parts.push('Pour chaque variante, ajoute un score de viralité /10 entre crochets à la fin, ex: [8/10].')
+    } else {
+      parts.push('Retourne UNIQUEMENT le texte du post, prêt à publier.')
+    }
   }
 
   return parts.join('\n')

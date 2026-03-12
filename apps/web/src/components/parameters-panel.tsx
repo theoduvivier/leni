@@ -1,7 +1,21 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, type KeyboardEvent } from 'react'
 import { ChevronDown, ChevronRight, Save, Loader2, Check, Plus, Trash2 } from 'lucide-react'
+
+function handleTab(e: KeyboardEvent<HTMLTextAreaElement>) {
+  if (e.key === 'Tab') {
+    e.preventDefault()
+    const ta = e.currentTarget
+    const start = ta.selectionStart
+    const end = ta.selectionEnd
+    const value = ta.value
+    const newValue = value.substring(0, start) + '  ' + value.substring(end)
+    ta.value = newValue
+    ta.selectionStart = ta.selectionEnd = start + 2
+    ta.dispatchEvent(new Event('input', { bubbles: true }))
+  }
+}
 
 interface ParametersPanelProps {
   personaSlug: string
@@ -39,7 +53,7 @@ type SectionKey = 'config' | 'regles' | 'faq' | 'context' | 'skill' | 'model'
 
 export function ParametersPanel({ personaSlug, postType }: ParametersPanelProps) {
   const [persona, setPersona] = useState<PersonaData | null>(null)
-  const [contextLive, setContextLive] = useState<Record<string, string>>({})
+  const [contextLive, setContextLive] = useState<Record<string, unknown>>({})
   const [skill, setSkill] = useState<SkillData | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -52,7 +66,7 @@ export function ParametersPanel({ personaSlug, postType }: ParametersPanelProps)
   const [configDraft, setConfigDraft] = useState('')
   const [reglesDraft, setReglesDraft] = useState('')
   const [faqDraft, setFaqDraft] = useState<Array<{ question: string; reponse: string }>>([])
-  const [contextDraft, setContextDraft] = useState<Record<string, string>>({})
+  const [contextDraft, setContextDraft] = useState<Record<string, unknown>>({})
   const [skillDraft, setSkillDraft] = useState('')
 
   const fetchPersona = useCallback(async () => {
@@ -240,6 +254,7 @@ export function ParametersPanel({ personaSlug, postType }: ParametersPanelProps)
                     <textarea
                       value={configDraft}
                       onChange={(e) => setConfigDraft(e.target.value)}
+                      onKeyDown={handleTab}
                       rows={12}
                       className="w-full rounded-lg bg-white/[0.04] border border-white/[0.1] px-3 py-2.5 text-[12px] text-white/60 font-mono focus:outline-none focus:border-accent-blue/40 transition-all resize-y"
                     />
@@ -255,6 +270,7 @@ export function ParametersPanel({ personaSlug, postType }: ParametersPanelProps)
                     <textarea
                       value={reglesDraft}
                       onChange={(e) => setReglesDraft(e.target.value)}
+                      onKeyDown={handleTab}
                       rows={8}
                       className="w-full rounded-lg bg-white/[0.04] border border-white/[0.1] px-3 py-2.5 text-[12px] text-white/60 font-mono focus:outline-none focus:border-accent-blue/40 transition-all resize-y"
                     />
@@ -272,14 +288,16 @@ export function ParametersPanel({ personaSlug, postType }: ParametersPanelProps)
                         <div key={i} className="bg-white/[0.03] rounded-lg p-3 space-y-2">
                           <div className="flex items-start gap-2">
                             <span className="text-[11px] font-bold text-accent-blue shrink-0 mt-1.5">Q:</span>
-                            <input
+                            <textarea
                               value={f.question}
                               onChange={(e) => {
                                 const next = [...faqDraft]
                                 next[i] = { ...next[i], question: e.target.value }
                                 setFaqDraft(next)
                               }}
-                              className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded px-2 py-1.5 text-[12px] text-white/60 focus:outline-none focus:border-accent-blue/40"
+                              onKeyDown={handleTab}
+                              rows={2}
+                              className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded px-2 py-1.5 text-[12px] text-white/60 font-mono focus:outline-none focus:border-accent-blue/40 resize-y"
                             />
                           </div>
                           <div className="flex items-start gap-2">
@@ -291,8 +309,9 @@ export function ParametersPanel({ personaSlug, postType }: ParametersPanelProps)
                                 next[i] = { ...next[i], reponse: e.target.value }
                                 setFaqDraft(next)
                               }}
-                              rows={2}
-                              className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded px-2 py-1.5 text-[12px] text-white/60 focus:outline-none focus:border-accent-blue/40 resize-y"
+                              onKeyDown={handleTab}
+                              rows={3}
+                              className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded px-2 py-1.5 text-[12px] text-white/60 font-mono focus:outline-none focus:border-accent-blue/40 resize-y"
                             />
                           </div>
                           <button
@@ -328,27 +347,46 @@ export function ParametersPanel({ personaSlug, postType }: ParametersPanelProps)
 
                 {section.key === 'context' && (
                   isEditing ? (
-                    <div className="space-y-2">
-                      {Object.entries(contextDraft).map(([key, value]) => (
-                        <div key={key} className="flex items-center gap-3">
-                          <span className="text-[12px] font-semibold text-white/50 shrink-0 w-40 truncate">{key}</span>
-                          <input
-                            value={value}
-                            onChange={(e) => setContextDraft({ ...contextDraft, [key]: e.target.value })}
-                            className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded px-2 py-1.5 text-[12px] text-white/60 focus:outline-none focus:border-accent-blue/40"
-                          />
-                          <button
-                            onClick={() => {
-                              const next = { ...contextDraft }
-                              delete next[key]
-                              setContextDraft(next)
-                            }}
-                            className="text-white/20 hover:text-red-400 transition-colors"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </button>
-                        </div>
-                      ))}
+                    <div className="space-y-3">
+                      {Object.entries(contextDraft).map(([key, value]) => {
+                        const isComplex = typeof value === 'object' && value !== null
+                        const displayValue = isComplex ? JSON.stringify(value, null, 2) : String(value ?? '')
+                        const lineCount = displayValue.split('\n').length
+                        return (
+                          <div key={key} className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[12px] font-semibold text-white/50">{key}</span>
+                              <button
+                                onClick={() => {
+                                  const next = { ...contextDraft }
+                                  delete next[key]
+                                  setContextDraft(next)
+                                }}
+                                className="text-white/20 hover:text-red-400 transition-colors"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </div>
+                            <textarea
+                              value={displayValue}
+                              onChange={(e) => {
+                                if (isComplex) {
+                                  try {
+                                    setContextDraft({ ...contextDraft, [key]: JSON.parse(e.target.value) })
+                                  } catch {
+                                    setContextDraft({ ...contextDraft, [key]: e.target.value })
+                                  }
+                                } else {
+                                  setContextDraft({ ...contextDraft, [key]: e.target.value })
+                                }
+                              }}
+                              onKeyDown={handleTab}
+                              rows={Math.max(2, Math.min(lineCount + 1, 12))}
+                              className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-[12px] text-white/60 font-mono focus:outline-none focus:border-accent-blue/40 resize-y"
+                            />
+                          </div>
+                        )
+                      })}
                       <button
                         onClick={() => setContextDraft({ ...contextDraft, ['nouveau_champ']: '' })}
                         className="flex items-center gap-1 text-[11px] font-bold text-accent-blue hover:text-accent-blue/80 transition-colors"
@@ -359,12 +397,19 @@ export function ParametersPanel({ personaSlug, postType }: ParametersPanelProps)
                   ) : (
                     <div className="space-y-1">
                       {Object.entries(contextLive).length > 0 ? (
-                        Object.entries(contextLive).map(([key, value]) => (
-                          <div key={key} className="flex items-center justify-between py-1.5">
-                            <span className="text-[12px] font-semibold text-white/50">{key}</span>
-                            <span className="text-[12px] text-white/70 font-medium">{value || '—'}</span>
-                          </div>
-                        ))
+                        Object.entries(contextLive).map(([key, value]) => {
+                          const isComplex = typeof value === 'object' && value !== null
+                          return (
+                            <div key={key} className={isComplex ? 'py-1.5' : 'flex items-center justify-between py-1.5'}>
+                              <span className="text-[12px] font-semibold text-white/50">{key}</span>
+                              {isComplex ? (
+                                <pre className="text-[11px] text-white/50 bg-white/[0.03] rounded p-2 mt-1 font-mono whitespace-pre-wrap">{JSON.stringify(value, null, 2)}</pre>
+                              ) : (
+                                <span className="text-[12px] text-white/70 font-medium">{String(value) || '—'}</span>
+                              )}
+                            </div>
+                          )
+                        })
                       ) : (
                         <p className="text-[12px] text-white/25">Aucune donnée live</p>
                       )}
@@ -377,6 +422,7 @@ export function ParametersPanel({ personaSlug, postType }: ParametersPanelProps)
                     <textarea
                       value={skillDraft}
                       onChange={(e) => setSkillDraft(e.target.value)}
+                      onKeyDown={handleTab}
                       rows={16}
                       className="w-full rounded-lg bg-white/[0.04] border border-white/[0.1] px-3 py-2.5 text-[12px] text-white/60 font-mono focus:outline-none focus:border-accent-blue/40 transition-all resize-y"
                     />

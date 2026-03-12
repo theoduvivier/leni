@@ -57,6 +57,7 @@ function RedigerContent() {
   const [brief, setBrief] = useState('')
   const [postId, setPostId] = useState<string | null>(null)
   const [generatedContent, setGeneratedContent] = useState('')
+  const [postMediaUrl, setPostMediaUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [publishing, setPublishing] = useState(false)
@@ -79,7 +80,9 @@ function RedigerContent() {
 
   // Image picker
   const [selectedImage, setSelectedImage] = useState<{ url: string; fullUrl: string; photographer: string } | null>(null)
-  const needsImage = ['post_image', 'instagram_caption', 'instagram_story'].includes(type)
+  const [imageMode, setImageMode] = useState<'none' | 'stock' | 'upload'>('none')
+  const [customImage, setCustomImage] = useState<UploadedFile | null>(null)
+  const customFileInputRef = useRef<HTMLInputElement>(null)
 
   // Mobile tab
   const [mobileTab, setMobileTab] = useState<'rediger' | 'params'>('rediger')
@@ -108,6 +111,7 @@ function RedigerContent() {
           const postData = await postRes.json()
           setPostId(job.result.postId as string)
           setGeneratedContent(postData.post.contenu)
+          setPostMediaUrl(postData.post.mediaUrl ?? null)
           setStep('review')
           return
         }
@@ -145,6 +149,33 @@ function RedigerContent() {
     setUploading(false)
   }
 
+  async function handleCustomImageUpload(files: FileList) {
+    setUploading(true)
+    setError(null)
+    try {
+      const formData = new FormData()
+      formData.append('files', files[0])
+      const res = await fetch('/api/media', { method: 'POST', body: formData })
+      if (!res.ok) {
+        const err = await res.json()
+        setError(err.error ?? 'Erreur lors de l\'upload')
+        return
+      }
+      const data = await res.json()
+      setCustomImage(data.files[0] as UploadedFile)
+    } catch {
+      setError('Erreur réseau lors de l\'upload')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  function handleImageModeChange(mode: 'none' | 'stock' | 'upload') {
+    setImageMode(mode)
+    if (mode !== 'stock') setSelectedImage(null)
+    if (mode !== 'upload') setCustomImage(null)
+  }
+
   const isGenerating = step === 'generating'
 
   async function handleGenerate() {
@@ -172,6 +203,9 @@ function RedigerContent() {
       if (selectedImage) {
         body.mediaUrl = selectedImage.fullUrl
         body.imageCredit = selectedImage.photographer
+      } else if (customImage) {
+        body.mediaUrl = `${window.location.origin}${customImage.url}`
+        body.mediaIds = [customImage.id]
       }
 
       const res = await fetch('/api/posts/generate', {
@@ -207,7 +241,7 @@ function RedigerContent() {
       const res = await fetch(`/api/posts/${postId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ publishAt, statut: 'approved' }),
+        body: JSON.stringify({ publishAt, statut: 'approved', contenu: generatedContent }),
       })
       if (res.ok) {
         setScheduled(true)
@@ -225,7 +259,7 @@ function RedigerContent() {
       await fetch(`/api/posts/${postId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ statut: 'approved' }),
+        body: JSON.stringify({ statut: 'approved', contenu: generatedContent }),
       })
       const res = await fetch(`/api/posts/${postId}/publish`, { method: 'POST' })
       if (res.ok) {
@@ -254,6 +288,7 @@ function RedigerContent() {
     setStep('config')
     setPostId(null)
     setGeneratedContent('')
+    setPostMediaUrl(null)
     setPublished(false)
     setPublishing(false)
     setShowSchedule(false)
@@ -262,6 +297,9 @@ function RedigerContent() {
     setScheduleTime('09:00')
     setCopied(false)
     setError(null)
+    setImageMode('none')
+    setCustomImage(null)
+    setSelectedImage(null)
   }
 
   function openSchedule() {
@@ -491,30 +529,89 @@ function RedigerContent() {
                 )}
               </div>
 
-              {/* Image picker for visual post types */}
-              {needsImage && !isDeal && (
+              {/* Image section for all non-deal types */}
+              {!isDeal && (
                 <div>
                   <label className="block text-[12px] font-bold text-white/40 uppercase tracking-wider mb-2.5">
                     Image
+                    <span className="text-white/20 font-normal ml-1">(optionnel)</span>
                   </label>
-                  {selectedImage ? (
-                    <div className="relative rounded-xl overflow-hidden">
-                      <img src={selectedImage.url} alt="" className="w-full h-48 object-cover rounded-xl" />
-                      <div className="absolute bottom-2 left-2 rounded-md bg-black/50 backdrop-blur-sm px-2 py-1 text-[10px] text-white/60">
-                        {selectedImage.photographer}
-                      </div>
+                  <div className="flex gap-1 p-1 rounded-xl bg-white/[0.04] border border-white/[0.06] mb-3">
+                    {([
+                      { value: 'none' as const, label: 'Pas d\'image' },
+                      { value: 'stock' as const, label: 'Banque d\'images' },
+                      { value: 'upload' as const, label: 'Mon image' },
+                    ]).map((m) => (
                       <button
-                        onClick={() => setSelectedImage(null)}
-                        className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/50 text-white/60 hover:text-white transition-colors"
+                        key={m.value}
+                        onClick={() => handleImageModeChange(m.value)}
+                        className={`flex-1 rounded-lg py-2 text-[12px] font-bold transition-all ${
+                          imageMode === m.value
+                            ? 'bg-white/[0.08] text-white shadow-sm'
+                            : 'text-white/35 hover:text-white/50'
+                        }`}
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        {m.label}
                       </button>
-                    </div>
-                  ) : (
-                    <ImagePicker
-                      defaultQuery={persona === 'flipio' ? 'modern real estate technology' : 'luxury paris apartment'}
-                      onSelect={(img) => setSelectedImage({ url: img.url, fullUrl: img.fullUrl, photographer: img.photographer })}
-                    />
+                    ))}
+                  </div>
+
+                  {imageMode === 'stock' && (
+                    <>
+                      {selectedImage ? (
+                        <div className="relative rounded-xl overflow-hidden">
+                          <img src={selectedImage.url} alt="" className="w-full h-48 object-cover rounded-xl" />
+                          <div className="absolute bottom-2 left-2 rounded-md bg-black/50 backdrop-blur-sm px-2 py-1 text-[10px] text-white/60">
+                            {selectedImage.photographer}
+                          </div>
+                          <button
+                            onClick={() => setSelectedImage(null)}
+                            className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/50 text-white/60 hover:text-white transition-colors"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <ImagePicker
+                          defaultQuery={persona === 'flipio' ? 'modern real estate technology' : 'luxury paris apartment'}
+                          onSelect={(img) => setSelectedImage({ url: img.url, fullUrl: img.fullUrl, photographer: img.photographer })}
+                        />
+                      )}
+                    </>
+                  )}
+
+                  {imageMode === 'upload' && (
+                    <>
+                      {customImage ? (
+                        <div className="relative rounded-xl overflow-hidden">
+                          <img src={customImage.url} alt="" className="w-full h-48 object-cover rounded-xl" />
+                          <button
+                            onClick={() => setCustomImage(null)}
+                            className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/50 text-white/60 hover:text-white transition-colors"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <input
+                            ref={customFileInputRef}
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            className="hidden"
+                            onChange={(e) => e.target.files && handleCustomImageUpload(e.target.files)}
+                          />
+                          <button
+                            onClick={() => customFileInputRef.current?.click()}
+                            disabled={uploading}
+                            className="flex items-center gap-2 rounded-xl border border-dashed border-white/[0.12] bg-white/[0.02] px-4 py-8 text-[13px] font-bold text-white/40 hover:text-white/60 hover:border-white/[0.2] hover:bg-white/[0.04] transition-all w-full justify-center disabled:opacity-40"
+                          >
+                            {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                            {uploading ? 'Upload en cours...' : 'Choisir une image'}
+                          </button>
+                        </>
+                      )}
+                    </>
                   )}
                 </div>
               )}
@@ -579,10 +676,26 @@ function RedigerContent() {
                 </div>
               )}
 
-              <div className="rounded-xl bg-white/[0.04] border border-white/[0.08] p-5">
-                <pre className="text-[14px] text-white/80 whitespace-pre-wrap font-sans leading-relaxed">
-                  {generatedContent}
-                </pre>
+              {!isDeal && (selectedImage || customImage || postMediaUrl) && (
+                <div className="rounded-xl overflow-hidden">
+                  <img
+                    src={selectedImage?.url ?? customImage?.url ?? postMediaUrl ?? ''}
+                    alt=""
+                    className="w-full h-48 object-cover rounded-xl"
+                  />
+                  {selectedImage?.photographer && (
+                    <p className="text-[11px] text-white/25 mt-1.5">Photo : {selectedImage.photographer}</p>
+                  )}
+                </div>
+              )}
+
+              <div className="rounded-xl bg-white/[0.04] border border-white/[0.08] overflow-hidden">
+                <textarea
+                  value={generatedContent}
+                  onChange={(e) => setGeneratedContent(e.target.value)}
+                  rows={Math.max(8, generatedContent.split('\n').length + 2)}
+                  className="w-full px-5 py-4 text-[14px] text-white/80 bg-transparent font-sans leading-relaxed focus:outline-none resize-y"
+                />
               </div>
 
               <div className="flex items-center gap-2 text-[12px] text-white/25">
