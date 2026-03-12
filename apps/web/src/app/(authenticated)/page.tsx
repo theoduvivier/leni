@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import NextImage from 'next/image'
 import { Pencil, Zap, Image, FileText, ArrowUpRight, Activity } from 'lucide-react'
-import { ComposeSheet } from '@/components/compose-sheet'
 
 interface Stats {
   postsPublished: number
@@ -26,23 +25,13 @@ interface PostItem {
 export default function Home() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [recentPosts, setRecentPosts] = useState<PostItem[]>([])
-  const [composeOpen, setComposeOpen] = useState(false)
-  const [composeDefaults, setComposeDefaults] = useState<{ type?: string }>({})
-
   useEffect(() => {
     fetch('/api/stats').then((r) => r.json()).then(setStats).catch(() => {})
     fetch('/api/posts?limit=5').then((r) => r.json()).then((d) => setRecentPosts(d.posts ?? [])).catch(() => {})
   }, [])
 
-  useEffect(() => {
-    function onCompose() { setComposeOpen(true) }
-    window.addEventListener('leni:compose', onCompose)
-    return () => window.removeEventListener('leni:compose', onCompose)
-  }, [])
-
   function openCompose(type?: string) {
-    setComposeDefaults({ type })
-    setComposeOpen(true)
+    window.dispatchEvent(new CustomEvent('leni:compose', { detail: { type } }))
   }
 
   return (
@@ -141,11 +130,6 @@ export default function Home() {
         </div>
       </div>
 
-      <ComposeSheet
-        open={composeOpen}
-        onClose={() => setComposeOpen(false)}
-        defaultType={composeDefaults.type}
-      />
     </div>
   )
 }

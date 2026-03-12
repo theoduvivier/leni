@@ -1,9 +1,9 @@
 import { db } from '@leni/db'
-import { callClaude } from '../lib/claude'
+import { callLLM } from '../lib/llm'
 import { getLinkedInAccessToken } from '../publishers/linkedin'
 import { z } from 'zod'
 
-const ClaudeReply = z.object({
+const LLMReply = z.object({
   classification: z.enum(['question', 'prospect', 'compliment', 'debat', 'spam']),
   isQuestion: z.boolean(),
   isProspect: z.boolean(),
@@ -90,7 +90,7 @@ async function fetchLinkedInComments(postUrn: string): Promise<LinkedInComment[]
 }
 
 /**
- * Process a single comment with Claude to generate a draft reply.
+ * Process a single comment with LLM to generate a draft reply.
  */
 async function processComment(
   comment: LinkedInComment,
@@ -109,27 +109,27 @@ Persona : ${personaSlug}
 
 Analyse ce commentaire et rédige une réponse. Retourne UNIQUEMENT du JSON valide.`
 
-  const raw = await callClaude(personaSlug, 'comment_reply', prompt, 512)
+  const raw = await callLLM(personaSlug, 'comment_reply', prompt, 512)
 
   // Extract JSON from response
   const jsonMatch = raw.match(/\{[\s\S]*\}/)
   if (!jsonMatch) {
-    log('warn', `Could not parse Claude reply for comment ${comment.id}`)
+    log('warn', `Could not parse LLM reply for comment ${comment.id}`)
     return { classification: 'compliment', isQuestion: false, isProspect: false, reply: null, shouldDM: false }
   }
 
   try {
-    const parsed = ClaudeReply.parse(JSON.parse(jsonMatch[0]))
+    const parsed = LLMReply.parse(JSON.parse(jsonMatch[0]))
     return parsed
   } catch {
-    log('warn', `Invalid Claude reply format for comment ${comment.id}`)
+    log('warn', `Invalid LLM reply format for comment ${comment.id}`)
     return { classification: 'compliment', isQuestion: false, isProspect: false, reply: null, shouldDM: false }
   }
 }
 
 /**
  * Main entry point: scan all published posts for new comments,
- * classify them with Claude, and store draft replies.
+ * classify them with LLM, and store draft replies.
  */
 export async function pollComments(): Promise<{ scanned: number; newComments: number; drafted: number }> {
   log('info', 'Starting comment poll')
@@ -165,7 +165,7 @@ export async function pollComments(): Promise<{ scanned: number; newComments: nu
 
       newComments++
 
-      // Process with Claude
+      // Process with LLM
       const result = await processComment(liComment, post.contenu, post.persona.slug)
 
       // Store in DB
@@ -215,11 +215,8 @@ export async function replyToComment(commentId: string): Promise<string> {
   const accessToken = await getLinkedInAccessToken()
 
   // Get author URN
-  const profileRes = await fetch('https://api.linkedin.com/v2/userinfo', {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  })
-  if (!profileRes.ok) throw new Error('Failed to fetch LinkedIn profile')
-  const profile = await profileRes.json()
+  const { getLinkedInPersonId } = await import('../publishers/linkedin')
+  const personId = await getLinkedInPersonId(accessToken)
 
   // Post reply
   const replyRes = await fetch(
@@ -232,7 +229,7 @@ export async function replyToComment(commentId: string): Promise<string> {
         'X-Restli-Protocol-Version': '2.0.0',
       },
       body: JSON.stringify({
-        actor: `urn:li:person:${profile.sub}`,
+        actor: `urn:li:person:${personId}`,
         message: { text: comment.draftReply },
         parentComment: comment.externalId,
       }),

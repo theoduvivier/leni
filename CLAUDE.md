@@ -16,7 +16,7 @@ Deux modes :
 - **Worker** : Node.js + TypeScript — agents, crons, publishers (port 3001)
 - **Queue** : DB polling (Job table + setInterval 10s)
 - **ORM** : Prisma + PostgreSQL
-- **IA** : Claude API — modèle `claude-sonnet-4-20250514`
+- **IA** : OpenAI API — modèle `gpt-4.1-mini`
 - **Media** : Sharp.js (traitement images, overlay texte stories)
 - **Photos stock** : Pexels API (gratuit)
 - **Infra** : VPS Hostinger / Dokploy — PostgreSQL service dédié
@@ -122,16 +122,18 @@ Mémoire centrale injectée dans chaque prompt Claude.
 
 ## Skills Dynamiques
 
-Chaque skill = fichier Markdown versionné en DB, injecté dans chaque appel Claude.
+Chaque skill = fichier Markdown versionné en DB, injecté dans chaque appel OpenAI.
 
 ```typescript
 const skill = await db.skill.findFirst({ where: { nom, actif: true } })
 const system = buildSystemPrompt(persona, skill.contenu, liveContext)
-const response = await claude.messages.create({
-  model: 'claude-sonnet-4-20250514',
+const response = await openai.chat.completions.create({
+  model: 'gpt-4.1-mini',
   max_tokens: 1024,
-  system,
-  messages: [{ role: 'user', content: prompt }]
+  messages: [
+    { role: 'system', content: system },
+    { role: 'user', content: prompt }
+  ]
 })
 ```
 
@@ -258,7 +260,7 @@ comment-reply        → répondre à un commentaire
 
 ```
 DATABASE_URL
-ANTHROPIC_API_KEY
+OPENAI_API_KEY
 LINKEDIN_CLIENT_ID
 LINKEDIN_CLIENT_SECRET
 LINKEDIN_ACCESS_TOKEN

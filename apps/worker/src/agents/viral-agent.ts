@@ -1,5 +1,5 @@
 import { db } from '@leni/db'
-import { callClaude } from '../lib/claude'
+import { callLLM } from '../lib/llm'
 import { z } from 'zod'
 
 const ViralInput = z.object({
@@ -63,17 +63,21 @@ Réponds UNIQUEMENT en JSON valide :
   ]
 }`
 
-  const result = await callClaude(
+  const result = await callLLM(
     validated.personaSlug,
     'linkedin_comment_trigger',
     prompt,
     2048
   )
 
+  if (!result.trim()) {
+    throw new Error('Le modèle a retourné un contenu vide — variantes non enregistrées')
+  }
+
   // Parse the JSON response
   const jsonMatch = result.match(/\{[\s\S]*\}/)
   if (!jsonMatch) {
-    throw new Error('Claude did not return valid JSON')
+    throw new Error('LLM did not return valid JSON')
   }
 
   let parsed: z.infer<typeof ViralOutput>

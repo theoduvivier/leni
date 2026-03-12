@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Cpu, Save, X, Check, Linkedin, Unlink, Loader2, ExternalLink } from 'lucide-react'
+import { Cpu, Save, X, Check, Linkedin, Unlink, Loader2, ExternalLink, ChevronDown, ChevronRight, Eye } from 'lucide-react'
 
 interface PersonaData {
   id: string
@@ -55,6 +55,14 @@ interface LinkedInStatus {
 }
 
 export default function ContextePage() {
+  return (
+    <Suspense>
+      <ContexteContent />
+    </Suspense>
+  )
+}
+
+function ContexteContent() {
   const searchParams = useSearchParams()
   const [personas, setPersonas] = useState<PersonaData[]>([])
   const [skills, setSkills] = useState<SkillData[]>([])
@@ -62,6 +70,10 @@ export default function ContextePage() {
   const [contextDraft, setContextDraft] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+
+  const [expandedPersona, setExpandedPersona] = useState<string | null>(null)
+  const [viewingSkill, setViewingSkill] = useState<{ id: string; nom: string; contenu: string } | null>(null)
+  const [skillLoading, setSkillLoading] = useState(false)
 
   const [linkedIn, setLinkedIn] = useState<LinkedInStatus | null>(null)
   const [linkedInLoading, setLinkedInLoading] = useState(false)
@@ -149,6 +161,19 @@ export default function ContextePage() {
     }
   }
 
+  async function loadSkillContent(skillId: string, skillNom: string) {
+    setSkillLoading(true)
+    try {
+      const res = await fetch(`/api/skills/${skillId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setViewingSkill({ id: skillId, nom: skillNom, contenu: data.skill?.contenu ?? '' })
+      }
+    } finally {
+      setSkillLoading(false)
+    }
+  }
+
   const flipio = personas.find((p) => p.slug === 'flipio')
   const mdb = personas.find((p) => p.slug === 'mdb')
 
@@ -161,7 +186,7 @@ export default function ContextePage() {
           Contexte & Personas
         </h1>
         <p className="mt-2 text-[15px] text-white/40 max-w-lg">
-          Données live injectées dans chaque prompt Claude.
+          Données live injectées dans chaque prompt IA.
         </p>
       </div>
 
@@ -282,6 +307,66 @@ export default function ContextePage() {
         </div>
       </div>
 
+      {/* Persona prompt details */}
+      {personas.map((persona) => {
+        const isExpanded = expandedPersona === persona.slug
+        const faq = persona.faq as unknown as Array<{ question: string; reponse: string }> | null
+
+        return (
+          <div key={`prompt-${persona.slug}`} className="mt-6 animate-fade-up" style={{ animationDelay: '150ms' }}>
+            <button
+              onClick={() => setExpandedPersona(isExpanded ? null : persona.slug)}
+              className="w-full flex items-center justify-between glass rounded-2xl p-5 transition-colors hover:bg-white/[0.03]"
+            >
+              <div className="flex items-center gap-3">
+                <Eye className="h-4 w-4 text-white/30" />
+                <span className="text-[14px] font-bold text-white/80">Prompt système — {persona.nom}</span>
+              </div>
+              {isExpanded ? (
+                <ChevronDown className="h-4 w-4 text-white/30" />
+              ) : (
+                <ChevronRight className="h-4 w-4 text-white/30" />
+              )}
+            </button>
+
+            {isExpanded && (
+              <div className="mt-2 glass rounded-2xl p-5 space-y-5">
+                {/* Config */}
+                <div>
+                  <h4 className="text-[11px] font-bold text-white/25 uppercase tracking-wider mb-2">Config persona</h4>
+                  <pre className="text-[12px] text-white/50 bg-white/[0.03] rounded-xl p-4 overflow-x-auto whitespace-pre-wrap font-mono">
+                    {JSON.stringify(persona.config, null, 2)}
+                  </pre>
+                </div>
+
+                {/* Règles */}
+                <div>
+                  <h4 className="text-[11px] font-bold text-white/25 uppercase tracking-wider mb-2">Règles</h4>
+                  <pre className="text-[12px] text-white/50 bg-white/[0.03] rounded-xl p-4 overflow-x-auto whitespace-pre-wrap font-mono">
+                    {persona.regles || 'Aucune règle définie'}
+                  </pre>
+                </div>
+
+                {/* FAQ */}
+                {faq && faq.length > 0 && (
+                  <div>
+                    <h4 className="text-[11px] font-bold text-white/25 uppercase tracking-wider mb-2">FAQ ({faq.length} entrées)</h4>
+                    <div className="space-y-2">
+                      {faq.map((f, i) => (
+                        <div key={i} className="bg-white/[0.03] rounded-xl p-4">
+                          <p className="text-[12px] font-bold text-accent-blue">Q: {f.question}</p>
+                          <p className="text-[12px] text-white/50 mt-1">R: {f.reponse}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )
+      })}
+
       {/* Live Context per persona */}
       {personas.map((persona) => {
         const ctx = (persona.contextLive?.data ?? {}) as Record<string, string>
@@ -360,12 +445,38 @@ export default function ContextePage() {
               name={skillDisplayNames[skill.nom] ?? skill.nom}
               platform={platformFromSkill[skill.nom] ?? skill.plateforme}
               version={skill.version}
+              onClick={() => loadSkillContent(skill.id, skill.nom)}
             />
           ))}
           {skills.length === 0 && (
             <p className="col-span-full text-[13px] text-white/25 text-center py-8">Aucun skill actif</p>
           )}
         </div>
+
+        {/* Skill content viewer */}
+        {viewingSkill && (
+          <div className="mt-4 glass rounded-2xl p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-[14px] font-bold text-white/80">
+                {skillDisplayNames[viewingSkill.nom] ?? viewingSkill.nom}
+              </h3>
+              <button
+                onClick={() => setViewingSkill(null)}
+                className="text-[12px] font-bold text-white/30 hover:text-white/60 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <pre className="text-[12px] text-white/50 bg-white/[0.03] rounded-xl p-4 overflow-x-auto whitespace-pre-wrap font-mono max-h-96 overflow-y-auto">
+              {viewingSkill.contenu}
+            </pre>
+          </div>
+        )}
+        {skillLoading && (
+          <div className="mt-4 flex items-center justify-center py-8">
+            <Loader2 className="h-5 w-5 animate-spin text-white/30" />
+          </div>
+        )}
       </div>
 
     </div>
@@ -455,7 +566,7 @@ function ContextRowEdit({ label, value, onChange }: { label: string; value: stri
   )
 }
 
-function SkillChip({ name, platform, version }: { name: string; platform: string; version: string }) {
+function SkillChip({ name, platform, version, onClick }: { name: string; platform: string; version: string; onClick?: () => void }) {
   const platformColors: Record<string, string> = {
     LinkedIn: 'text-accent-blue bg-accent-blue/10',
     Instagram: 'text-accent-pink bg-accent-pink/10',
@@ -463,7 +574,7 @@ function SkillChip({ name, platform, version }: { name: string; platform: string
   }
 
   return (
-    <div className="animate-scale-in glass glass-hover rounded-xl p-3.5">
+    <button onClick={onClick} className="animate-scale-in glass glass-hover rounded-xl p-3.5 text-left w-full cursor-pointer transition-all hover:ring-1 hover:ring-white/10">
       <p className="text-[13px] font-bold text-white/80">{name}</p>
       <div className="mt-2 flex items-center gap-2">
         <span className={`inline-block rounded-full px-2.5 py-1 text-[10px] font-bold ${platformColors[platform] ?? 'text-white/40 bg-white/[0.04]'}`}>
@@ -471,6 +582,6 @@ function SkillChip({ name, platform, version }: { name: string; platform: string
         </span>
         <span className="text-[10px] text-white/20">v{version}</span>
       </div>
-    </div>
+    </button>
   )
 }

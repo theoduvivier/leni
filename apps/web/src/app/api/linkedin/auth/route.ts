@@ -8,7 +8,7 @@ export async function POST() {
   }
 
   const redirectUri = `${process.env.NEXTAUTH_URL}/api/linkedin/callback`
-  const scope = 'openid profile w_member_social'
+  const scope = 'w_member_social'
   const state = randomBytes(16).toString('hex')
 
   const authUrl = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=${encodeURIComponent(scope)}`

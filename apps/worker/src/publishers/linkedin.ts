@@ -55,10 +55,31 @@ export async function getLinkedInAccessToken(): Promise<string> {
   throw new Error('LinkedIn not connected — connect via the dashboard')
 }
 
+export async function getLinkedInPersonId(accessToken: string): Promise<string> {
+  // Try /v2/userinfo (openid scope) first, fallback to /v2/me
+  const userinfoRes = await fetch('https://api.linkedin.com/v2/userinfo', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+  if (userinfoRes.ok) {
+    const profile = await userinfoRes.json()
+    return profile.sub
+  }
+
+  const meRes = await fetch('https://api.linkedin.com/v2/me', {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'X-Restli-Protocol-Version': '2.0.0',
+    },
+  })
+  if (!meRes.ok) throw new Error('Failed to fetch LinkedIn profile')
+  const me = await meRes.json()
+  return me.id
+}
+
 export function getLinkedInAuthUrl(): string {
   const clientId = process.env.LINKEDIN_CLIENT_ID
   const redirectUri = `${process.env.NEXTAUTH_URL}/api/linkedin/callback`
-  const scope = 'openid profile w_member_social'
+  const scope = 'w_member_social'
   const state = randomBytes(16).toString('hex')
 
   return `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=${encodeURIComponent(scope)}`
@@ -106,15 +127,11 @@ export async function publishToLinkedIn(postId: string): Promise<string> {
   const accessToken = await getLinkedInAccessToken()
 
   // Get user profile for author URN
-  const profileRes = await fetch('https://api.linkedin.com/v2/userinfo', {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  })
-  if (!profileRes.ok) throw new Error('Failed to fetch LinkedIn profile')
-  const profile = await profileRes.json()
+  const personId = await getLinkedInPersonId(accessToken)
 
   // Create post
   const postBody = {
-    author: `urn:li:person:${profile.sub}`,
+    author: `urn:li:person:${personId}`,
     lifecycleState: 'PUBLISHED',
     specificContent: {
       'com.linkedin.ugc.ShareContent': {

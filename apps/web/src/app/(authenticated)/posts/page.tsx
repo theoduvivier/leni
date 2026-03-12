@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { MessageCircle, RefreshCw, Send, ChevronDown, ChevronUp, Pencil, Check, X, Loader2 } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { MessageCircle, RefreshCw, Send, ChevronDown, ChevronUp, Pencil, Check, X, Loader2, Download, ExternalLink } from 'lucide-react'
 
 interface PostItem {
   id: string
@@ -70,15 +70,42 @@ export default function PostsPage() {
   const [sendingReply, setSendingReply] = useState<string | null>(null)
   const [editingReply, setEditingReply] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState('')
+  const [importing, setImporting] = useState(false)
+  const [importResult, setImportResult] = useState<{ total: number; new: number; error?: string } | null>(null)
+
+  const loadPosts = useCallback(async () => {
+    const res = await fetch('/api/posts?limit=100')
+    const data = await res.json()
+    setPosts(data.posts ?? [])
+  }, [])
 
   useEffect(() => {
     loadPosts()
-  }, [])
+  }, [loadPosts])
 
-  async function loadPosts() {
-    const res = await fetch('/api/posts?limit=50')
-    const data = await res.json()
-    setPosts(data.posts ?? [])
+  async function importLinkedInPosts() {
+    setImporting(true)
+    setImportResult(null)
+    try {
+      const res = await fetch('/api/linkedin/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ personaSlug: 'mdb' }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        const imported = data.imported as { isNew: boolean }[]
+        setImportResult({ total: imported.length, new: imported.filter((p: { isNew: boolean }) => p.isNew).length })
+        await loadPosts()
+      } else {
+        setImportResult({ total: 0, new: 0, error: data.error })
+      }
+    } catch (err) {
+      console.error('Import error:', err)
+      setImportResult({ total: 0, new: 0, error: 'Erreur réseau' })
+    } finally {
+      setImporting(false)
+    }
   }
 
   async function loadComments(postId: string) {
@@ -212,15 +239,44 @@ export default function PostsPage() {
   return (
     <div className="px-5 py-8 md:px-10 md:py-12 max-w-6xl">
       {/* Header */}
-      <div className="animate-fade-up">
-        <p className="text-[13px] font-semibold text-accent-blue tracking-wide uppercase">Posts</p>
-        <h1 className="mt-2 font-display text-3xl font-bold tracking-tight text-white md:text-4xl">
-          Mes publications
-        </h1>
-        <p className="mt-2 text-[15px] text-white/40 max-w-lg">
-          Tous vos posts avec commentaires et r&eacute;ponses.
-        </p>
+      <div className="animate-fade-up flex items-start justify-between gap-4">
+        <div>
+          <p className="text-[13px] font-semibold text-accent-blue tracking-wide uppercase">Posts</p>
+          <h1 className="mt-2 font-display text-3xl font-bold tracking-tight text-white md:text-4xl">
+            Mes publications
+          </h1>
+          <p className="mt-2 text-[15px] text-white/40 max-w-lg">
+            Tous vos posts avec commentaires et r&eacute;ponses.
+          </p>
+        </div>
+        <button
+          onClick={importLinkedInPosts}
+          disabled={importing}
+          className="mt-2 flex items-center gap-2 rounded-xl bg-accent-blue/10 border border-accent-blue/20 px-4 py-2.5 text-[12px] font-bold text-accent-blue hover:bg-accent-blue/15 transition-all disabled:opacity-50 shrink-0"
+        >
+          {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+          Importer LinkedIn
+        </button>
       </div>
+
+      {/* Import result */}
+      {importResult && (
+        <div className="mt-4 animate-fade-up glass rounded-xl px-4 py-3 flex items-center justify-between">
+          <p className="text-[13px] text-white/60">
+            {importResult.error
+              ? <span className="text-accent-pink">{importResult.error}</span>
+              : importResult.new > 0
+                ? <><span className="font-bold text-accent-teal">{importResult.new}</span> nouveau{importResult.new > 1 ? 'x' : ''} post{importResult.new > 1 ? 's' : ''} import&eacute;{importResult.new > 1 ? 's' : ''} ({importResult.total} total)</>
+                : importResult.total > 0
+                  ? <span>Tous les posts sont d&eacute;j&agrave; import&eacute;s ({importResult.total})</span>
+                  : <span className="text-white/30">Aucun post trouv&eacute; sur LinkedIn</span>
+            }
+          </p>
+          <button onClick={() => setImportResult(null)} className="text-white/20 hover:text-white/40">
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="mt-8 flex flex-wrap gap-2 animate-fade-up" style={{ animationDelay: '100ms' }}>
@@ -283,12 +339,29 @@ export default function PostsPage() {
                     <p className="text-[14px] font-semibold text-white/80 line-clamp-2">{post.contenu.slice(0, 150)}{post.contenu.length > 150 ? '...' : ''}</p>
                     <div className="mt-2 flex items-center gap-3">
                       <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${s.color}`}>{s.label}</span>
-                      <span className="text-[11px] text-white/20">{getTimeAgo(post.createdAt)}</span>
+                      <span className="text-[11px] text-white/20">
+                        {post.publishedAt
+                          ? new Date(post.publishedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
+                          : getTimeAgo(post.createdAt)
+                        }
+                      </span>
                       {post._count.comments > 0 && (
                         <span className="flex items-center gap-1 text-[11px] text-white/30">
                           <MessageCircle className="h-3 w-3" />
                           {post._count.comments}
                         </span>
+                      )}
+                      {post.externalId && (
+                        <a
+                          href={`https://www.linkedin.com/feed/update/${post.externalId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex items-center gap-1 text-[11px] text-accent-blue/50 hover:text-accent-blue transition-colors"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          Voir
+                        </a>
                       )}
                     </div>
                   </div>

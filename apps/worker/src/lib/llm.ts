@@ -1,12 +1,12 @@
-import Anthropic from '@anthropic-ai/sdk'
+import OpenAI from 'openai'
 import { db } from '@leni/db'
 import { buildSystemPrompt } from './context'
 
-const claude = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
-const MODEL = 'claude-sonnet-4-20250514' as const
+const MODEL = 'gpt-4.1-mini' as const
 
-export async function callClaude(
+export async function callLLM(
   personaSlug: string,
   skillNom: string,
   userPrompt: string,
@@ -43,13 +43,14 @@ export async function callClaude(
     (context?.data as Record<string, unknown>) ?? {}
   )
 
-  const response = await claude.messages.create({
+  const response = await openai.chat.completions.create({
     model: MODEL,
     max_tokens: maxTokens,
-    system,
-    messages: [{ role: 'user', content: userPrompt }],
+    messages: [
+      { role: 'system', content: system },
+      { role: 'user', content: userPrompt },
+    ],
   })
 
-  const textBlock = response.content.find((block) => block.type === 'text')
-  return textBlock && textBlock.type === 'text' ? textBlock.text : ''
+  return response.choices[0]?.message?.content ?? ''
 }

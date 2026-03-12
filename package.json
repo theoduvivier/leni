@@ -9,7 +9,9 @@
     "typecheck": "turbo typecheck",
     "db:generate": "turbo db:generate",
     "db:migrate": "turbo db:migrate",
-    "db:seed": "turbo db:seed"
+    "db:seed": "turbo db:seed",
+    "tunnel": "ssh -f -N -L 5434:localhost:5434 root@187.77.171.63 && echo 'Tunnel OK → localhost:5434'",
+    "tunnel:check": "pg_isready -h localhost -p 5434 -U leni -d leni_db || echo 'Tunnel down — run: pnpm tunnel'"
   },
   "devDependencies": {
     "turbo": "^2.4.0",

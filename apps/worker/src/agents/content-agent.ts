@@ -1,5 +1,5 @@
 import { db } from '@leni/db'
-import { callClaude } from '../lib/claude'
+import { callLLM } from '../lib/llm'
 import { z } from 'zod'
 
 const GeneratePostInput = z.object({
@@ -53,12 +53,16 @@ export async function generatePost(input: GeneratePostInput): Promise<string> {
   const maxTokens = isDeal || validated.type === 'ghostwriter' ? 2048 : 1024
   const module = isDeal ? 'M03' : 'M01'
 
-  const contenu = await callClaude(
+  const contenu = await callLLM(
     validated.personaSlug,
     skillNom,
     prompt,
     maxTokens
   )
+
+  if (!contenu.trim()) {
+    throw new Error('Le modèle a retourné un contenu vide — post non enregistré')
+  }
 
   const post = await db.post.create({
     data: {

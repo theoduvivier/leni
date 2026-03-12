@@ -300,7 +300,7 @@ export function ComposeSheet({ open, onClose, defaultType }: ComposeSheetProps) 
               <h2 className="font-display text-lg font-bold text-white">Composer</h2>
               <p className="text-[12px] text-white/35 mt-0.5">
                 {step === 'config' && (isDeal ? 'Renseigne les infos de ton deal' : 'Configure et génère ton post')}
-                {step === 'generating' && 'Claude est en train de rédiger...'}
+                {step === 'generating' && 'L\'IA est en train de rédiger...'}
                 {step === 'review' && 'Revois et valide le résultat'}
                 {step === 'schedule' && 'Choisis la date et l\'heure'}
               </p>
@@ -516,7 +516,7 @@ export function ComposeSheet({ open, onClose, defaultType }: ComposeSheetProps) 
                   <Loader2 className={`absolute -top-2 -right-2 h-5 w-5 animate-spin ${isDeal ? 'text-accent-teal' : 'text-accent-blue'}`} />
                 </div>
                 <p className="mt-6 text-[15px] font-bold text-white">
-                  {isDeal ? 'Claude rédige ton case study...' : 'Claude rédige ton post...'}
+                  {isDeal ? 'L\'IA rédige ton case study...' : 'L\'IA rédige ton post...'}
                 </p>
                 <p className="mt-1.5 text-[13px] text-white/30">Persona : {persona === 'flipio' ? 'Flipio' : 'MdB'} · {postTypes.find((t) => t.value === type)?.label}</p>
                 <div className="mt-6 w-48 h-1 rounded-full bg-white/[0.06] overflow-hidden">
@@ -634,7 +634,7 @@ export function ComposeSheet({ open, onClose, defaultType }: ComposeSheetProps) 
                 }`}
               >
                 <Sparkles className="h-4 w-4" />
-                {isDeal ? 'Générer le case study' : 'Générer avec Claude'}
+                {isDeal ? 'Générer le case study' : 'Générer avec l\'IA'}
               </button>
             )}
 

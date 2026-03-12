@@ -68,13 +68,27 @@ export async function GET(request: Request) {
     let profileName: string | null = null
     let profileImage: string | null = null
     try {
-      const profileRes = await fetch('https://api.linkedin.com/v2/userinfo', {
+      // Try /v2/userinfo first (openid scope), fallback to /v2/me
+      let profileRes = await fetch('https://api.linkedin.com/v2/userinfo', {
         headers: { Authorization: `Bearer ${accessToken}` },
       })
       if (profileRes.ok) {
         const profile = await profileRes.json()
         profileName = profile.name ?? null
         profileImage = profile.picture ?? null
+      } else {
+        profileRes = await fetch('https://api.linkedin.com/v2/me?projection=(id,localizedFirstName,localizedLastName,profilePicture(displayImage~:playableStreams))', {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'X-Restli-Protocol-Version': '2.0.0',
+          },
+        })
+        if (profileRes.ok) {
+          const profile = await profileRes.json()
+          profileName = [profile.localizedFirstName, profile.localizedLastName].filter(Boolean).join(' ') || null
+          const images = profile.profilePicture?.['displayImage~']?.elements
+          profileImage = images?.[images.length - 1]?.identifiers?.[0]?.identifier ?? null
+        }
       }
     } catch {
       // Profile fetch is non-critical
