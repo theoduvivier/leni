@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 import { db } from '@leni/db'
 import { createCipheriv, randomBytes } from 'crypto'
 
@@ -22,33 +22,48 @@ function encryptToken(token: string): string {
   return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`
 }
 
-function getBaseUrl(request: Request): string {
-  const url = new URL(request.url)
-  return `${url.protocol}//${url.host}`
+function redirectTo(request: NextRequest, path: string): NextResponse {
+  // Build absolute URL from the request origin
+  const origin = request.nextUrl.origin
+  return NextResponse.redirect(new URL(path, origin))
 }
 
-export async function GET(request: Request) {
-  const url = new URL(request.url)
-  const code = url.searchParams.get('code')
-  const error = url.searchParams.get('error')
-  const baseUrl = getBaseUrl(request)
-
-  if (error) {
-    return NextResponse.redirect(new URL(`/contexte?linkedin=error&detail=${error}`, baseUrl))
-  }
-
-  if (!code) {
-    return NextResponse.redirect(new URL('/contexte?linkedin=error&detail=no_code', baseUrl))
-  }
-
+export async function GET(request: NextRequest) {
   try {
+    const code = request.nextUrl.searchParams.get('code')
+    const error = request.nextUrl.searchParams.get('error')
+    const state = request.nextUrl.searchParams.get('state')
+
+    console.log('LinkedIn callback hit', { hasCode: !!code, hasError: !!error, hasState: !!state })
+
+    if (error) {
+      return redirectTo(request, `/settings?linkedin=error&detail=${error}`)
+    }
+
+    if (!code) {
+      return redirectTo(request, '/settings?linkedin=error&detail=no_code')
+    }
+
+    // CSRF validation: compare state param with cookie
+    const storedState = request.cookies.get('linkedin_oauth_state')?.value
+    if (!state || !storedState || state !== storedState) {
+      console.error('LinkedIn CSRF mismatch', { hasState: !!state, hasStoredState: !!storedState, match: state === storedState })
+      return redirectTo(request, '/settings?linkedin=error&detail=invalid_state')
+    }
+
+    // Use NEXTAUTH_URL for redirect_uri — must match exactly what was sent in /api/linkedin/auth
+    const baseUrl = process.env.NEXTAUTH_URL ?? request.nextUrl.origin
+    const redirectUri = `${baseUrl}/api/linkedin/callback`
+
+    console.log('LinkedIn token exchange starting', { redirectUri })
+
     const tokenRes = await fetch('https://www.linkedin.com/oauth/v2/accessToken', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
         grant_type: 'authorization_code',
         code,
-        redirect_uri: `${baseUrl}/api/linkedin/callback`,
+        redirect_uri: redirectUri,
         client_id: process.env.LINKEDIN_CLIENT_ID ?? '',
         client_secret: process.env.LINKEDIN_CLIENT_SECRET ?? '',
       }),
@@ -56,42 +71,41 @@ export async function GET(request: Request) {
 
     if (!tokenRes.ok) {
       const errorText = await tokenRes.text()
-      console.error('LinkedIn token exchange failed:', errorText)
-      return NextResponse.redirect(new URL('/contexte?linkedin=error&detail=token_exchange_failed', baseUrl))
+      console.error('LinkedIn token exchange failed:', tokenRes.status, errorText)
+      return redirectTo(request, '/settings?linkedin=error&detail=token_exchange_failed')
     }
 
     const tokenData = await tokenRes.json()
     const accessToken = tokenData.access_token as string
     const expiresIn = tokenData.expires_in as number
 
-    // Fetch LinkedIn profile info
+    console.log('LinkedIn token obtained', { expiresIn })
+
+    // Fetch LinkedIn profile info (non-critical)
     let profileName: string | null = null
     let profileImage: string | null = null
     try {
-      // Try /v2/userinfo first (openid scope), fallback to /v2/me
-      let profileRes = await fetch('https://api.linkedin.com/v2/userinfo', {
+      const userinfoRes = await fetch('https://api.linkedin.com/v2/userinfo', {
         headers: { Authorization: `Bearer ${accessToken}` },
       })
-      if (profileRes.ok) {
-        const profile = await profileRes.json()
+      if (userinfoRes.ok) {
+        const profile = await userinfoRes.json()
         profileName = profile.name ?? null
         profileImage = profile.picture ?? null
       } else {
-        profileRes = await fetch('https://api.linkedin.com/v2/me?projection=(id,localizedFirstName,localizedLastName,profilePicture(displayImage~:playableStreams))', {
+        const meRes = await fetch('https://api.linkedin.com/v2/me', {
           headers: {
             Authorization: `Bearer ${accessToken}`,
             'X-Restli-Protocol-Version': '2.0.0',
           },
         })
-        if (profileRes.ok) {
-          const profile = await profileRes.json()
+        if (meRes.ok) {
+          const profile = await meRes.json()
           profileName = [profile.localizedFirstName, profile.localizedLastName].filter(Boolean).join(' ') || null
-          const images = profile.profilePicture?.['displayImage~']?.elements
-          profileImage = images?.[images.length - 1]?.identifiers?.[0]?.identifier ?? null
         }
       }
-    } catch {
-      // Profile fetch is non-critical
+    } catch (profileErr) {
+      console.error('LinkedIn profile fetch failed (non-critical):', profileErr)
     }
 
     // Encrypt and store token
@@ -119,9 +133,21 @@ export async function GET(request: Request) {
 
     console.log('LinkedIn OAuth successful, token stored in DB', { expiresIn, profileName })
 
-    return NextResponse.redirect(new URL('/contexte?linkedin=connected', baseUrl))
+    const redirectRes = redirectTo(request, '/settings?linkedin=connected')
+    redirectRes.cookies.delete('linkedin_oauth_state')
+    return redirectRes
   } catch (err) {
-    console.error('LinkedIn callback error:', err)
-    return NextResponse.redirect(new URL('/contexte?linkedin=error&detail=callback_failed', baseUrl))
+    console.error('LinkedIn callback UNHANDLED error:', err)
+    try {
+      const redirectRes = redirectTo(request, '/settings?linkedin=error&detail=callback_failed')
+      redirectRes.cookies.delete('linkedin_oauth_state')
+      return redirectRes
+    } catch {
+      // Last resort: return JSON if even redirect fails
+      return NextResponse.json(
+        { error: 'LinkedIn callback failed', detail: err instanceof Error ? err.message : 'unknown' },
+        { status: 500 }
+      )
+    }
   }
 }

@@ -20,9 +20,10 @@ export const metadata: Metadata = {
   description: 'Dashboard de contrôle Leni',
   icons: {
     icon: [
+      { url: '/favicon.ico', sizes: 'any' },
       { url: '/favicon.svg', type: 'image/svg+xml' },
     ],
-    apple: '/favicon.svg',
+    apple: '/apple-touch-icon.png',
   },
 }
 

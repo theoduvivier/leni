@@ -10,12 +10,16 @@
     "db:generate": "turbo db:generate",
     "db:migrate": "turbo db:migrate",
     "db:seed": "turbo db:seed",
+    "test": "turbo test",
+    "prepare": "husky",
     "tunnel": "ssh -f -N -L 5434:localhost:5434 root@187.77.171.63 && echo 'Tunnel OK → localhost:5434'",
     "tunnel:check": "pg_isready -h localhost -p 5434 -U leni -d leni_db || echo 'Tunnel down — run: pnpm tunnel'"
   },
   "devDependencies": {
+    "husky": "^9.1.0",
     "turbo": "^2.4.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^3.2.0"
   },
   "packageManager": "pnpm@9.15.0"
 }

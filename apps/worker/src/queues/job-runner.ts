@@ -4,6 +4,7 @@ import { publishToLinkedIn } from '../publishers/linkedin'
 import { publishToInstagram } from '../publishers/instagram'
 import { generateViral } from '../agents/viral-agent'
 import { pollComments, replyToComment } from '../agents/comment-agent'
+import { runAlgoWatch } from '../agents/algo-watcher'
 
 type JobHandler = (data: Record<string, unknown>) => Promise<unknown>
 
@@ -31,6 +32,10 @@ const handlers: Record<string, JobHandler> = {
   'comment-reply': async (data) => {
     const commentId = await replyToComment(data.commentId as string)
     return { commentId }
+  },
+  'algo-watch': async () => {
+    const result = await runAlgoWatch()
+    return result
   },
 }
 
@@ -64,10 +69,12 @@ export async function processJobs() {
       continue
     }
 
-    await db.job.update({
-      where: { id: job.id },
+    // Atomic lock: only claim the job if it's still pending (prevents duplicate processing)
+    const claimed = await db.job.updateMany({
+      where: { id: job.id, status: 'pending' },
       data: { status: 'processing', attempts: { increment: 1 } },
     })
+    if (claimed.count === 0) continue // another worker already claimed it
 
     try {
       const result = await handler(job.data as Record<string, unknown>)
@@ -78,7 +85,8 @@ export async function processJobs() {
       log('info', `Job completed`, { jobId: job.id, type: job.type })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error'
-      const newStatus = job.attempts >= 2 ? 'failed' : 'pending'
+      const currentJob = await db.job.findUnique({ where: { id: job.id } })
+      const newStatus = (currentJob?.attempts ?? 1) >= 2 ? 'failed' : 'pending'
       await db.job.update({
         where: { id: job.id },
         data: { status: newStatus, error: message },

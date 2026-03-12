@@ -12,6 +12,9 @@ const GeneratePostInput = z.object({
   dealStrategy: z.string().optional(),
   dealMetric: z.string().optional(),
   mediaIds: z.array(z.string()).optional(),
+  // Image from picker (optional, for post_image / instagram types)
+  mediaUrl: z.string().optional(),
+  imageCredit: z.string().optional(),
 })
 
 type GeneratePostInput = z.infer<typeof GeneratePostInput>
@@ -26,6 +29,16 @@ const skillMap: Record<string, string> = {
   instagram_story: 'instagram_story',
 }
 
+const typeLabels: Record<string, string> = {
+  post_texte: 'post texte LinkedIn',
+  comment_trigger: 'post viral comment trigger LinkedIn',
+  ghostwriter: 'post long format pédagogique LinkedIn',
+  post_image: 'post avec image LinkedIn',
+  deal_case_study: 'case study deal immobilier',
+  instagram_caption: 'caption Instagram',
+  instagram_story: 'texte pour Story Instagram',
+}
+
 function buildDealBrief(input: GeneratePostInput): string {
   const parts = [`Brief : ${input.brief}`]
   if (input.dealCity) parts.push(`Ville : ${input.dealCity}`)
@@ -37,6 +50,30 @@ function buildDealBrief(input: GeneratePostInput): string {
   return parts.join('\n')
 }
 
+function buildPrompt(validated: GeneratePostInput): string {
+  const isDeal = validated.type === 'deal_case_study'
+  const typeLabel = typeLabels[validated.type] ?? validated.type
+
+  const parts: string[] = []
+
+  if (isDeal) {
+    parts.push(buildDealBrief(validated))
+    parts.push(`\nRédige un ${typeLabel} pour ${validated.platform}.`)
+  } else {
+    parts.push(`Brief : ${validated.brief}`)
+
+    if (validated.mediaUrl) {
+      parts.push(`\nUne image accompagne ce post (crédit : ${validated.imageCredit ?? 'non renseigné'}).`)
+      parts.push('Le texte doit compléter et contextualiser l\'image, pas la décrire.')
+    }
+
+    parts.push(`\nRédige un ${typeLabel}.`)
+    parts.push('Retourne UNIQUEMENT le texte du post, prêt à publier.')
+  }
+
+  return parts.join('\n')
+}
+
 export async function generatePost(input: GeneratePostInput): Promise<string> {
   const validated = GeneratePostInput.parse(input)
 
@@ -45,11 +82,8 @@ export async function generatePost(input: GeneratePostInput): Promise<string> {
     throw new Error(`Unknown post type: ${validated.type}`)
   }
 
+  const prompt = buildPrompt(validated)
   const isDeal = validated.type === 'deal_case_study'
-  const prompt = isDeal
-    ? `${buildDealBrief(validated)}\n\nGénère un post case study pour ${validated.platform}.`
-    : `Brief : ${validated.brief}\n\nGénère un post ${validated.type} pour ${validated.platform}.`
-
   const maxTokens = isDeal || validated.type === 'ghostwriter' ? 2048 : 1024
   const module = isDeal ? 'M03' : 'M01'
 
@@ -57,7 +91,7 @@ export async function generatePost(input: GeneratePostInput): Promise<string> {
     validated.personaSlug,
     skillNom,
     prompt,
-    maxTokens
+    { maxTokens, platform: validated.platform }
   )
 
   if (!contenu.trim()) {
@@ -70,6 +104,7 @@ export async function generatePost(input: GeneratePostInput): Promise<string> {
       type: validated.type,
       module,
       contenu,
+      mediaUrl: validated.mediaUrl ?? null,
       statut: 'draft',
       platform: validated.platform,
     },

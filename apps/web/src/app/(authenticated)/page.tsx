@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import NextImage from 'next/image'
-import { Pencil, Zap, Image, FileText, ArrowUpRight, Activity } from 'lucide-react'
+import { Pencil, Zap, Image, FileText, ArrowUpRight } from 'lucide-react'
 
 interface Stats {
   postsPublished: number
@@ -23,6 +24,7 @@ interface PostItem {
 }
 
 export default function Home() {
+  const router = useRouter()
   const [stats, setStats] = useState<Stats | null>(null)
   const [recentPosts, setRecentPosts] = useState<PostItem[]>([])
   useEffect(() => {
@@ -31,7 +33,7 @@ export default function Home() {
   }, [])
 
   function openCompose(type?: string) {
-    window.dispatchEvent(new CustomEvent('leni:compose', { detail: { type } }))
+    router.push(type ? `/rediger?type=${type}` : '/rediger')
   }
 
   return (
@@ -115,21 +117,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* Agent status */}
-      <div className="mt-12 animate-fade-up" style={{ animationDelay: '350ms' }}>
-        <div className="flex items-center justify-between">
-          <h2 className="font-display text-lg font-bold tracking-tight text-white">Statut agents</h2>
-          <div className="flex items-center gap-1.5 text-[12px] font-medium text-white/30">
-            <Activity className="h-3.5 w-3.5" />
-            Temps réel
-          </div>
-        </div>
-        <div className="mt-4 glass rounded-2xl overflow-hidden divide-y divide-white/[0.04]">
-          <AgentRow name="Content Agent" status="idle" description="Dernière génération : jamais" />
-          <AgentRow name="Comment Agent" status="scheduled" description="Scan toutes les 4h" />
-        </div>
-      </div>
-
     </div>
   )
 }
@@ -212,27 +199,3 @@ function PostRow({ post }: { post: PostItem }) {
   )
 }
 
-function AgentRow({ name, status, description }: {
-  name: string; status: 'idle' | 'active' | 'scheduled' | 'error'; description: string
-}) {
-  const cfg = {
-    idle: { label: 'Inactif', dot: 'bg-white/25', bg: 'bg-white/[0.04]', text: 'text-white/40' },
-    active: { label: 'Actif', dot: 'bg-accent-teal', bg: 'bg-accent-teal/10', text: 'text-accent-teal' },
-    scheduled: { label: 'Planifié', dot: 'bg-amber-400', bg: 'bg-amber-400/10', text: 'text-amber-400' },
-    error: { label: 'Erreur', dot: 'bg-red-400', bg: 'bg-red-400/10', text: 'text-red-400' },
-  }
-  const s = cfg[status]
-
-  return (
-    <div className="flex items-center justify-between px-5 py-4 transition-colors hover:bg-white/[0.02]">
-      <div>
-        <p className="text-[14px] font-semibold text-white/90">{name}</p>
-        <p className="text-[12px] text-white/30 mt-0.5">{description}</p>
-      </div>
-      <div className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-bold ${s.bg} ${s.text}`}>
-        <span className={`h-1.5 w-1.5 rounded-full ${s.dot} ${status === 'active' || status === 'scheduled' ? 'animate-pulse-soft' : ''}`} />
-        {s.label}
-      </div>
-    </div>
-  )
-}

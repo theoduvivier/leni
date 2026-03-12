@@ -29,15 +29,16 @@ model ContextLive {
 }
 
 model Skill {
-  id         String   @id @default(cuid())
-  nom        String   @unique
+  id         String         @id @default(cuid())
+  nom        String         @unique
   contenu    String
   version    String
   plateforme String
-  actif      Boolean  @default(true)
+  actif      Boolean        @default(true)
   updatedBy  String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  history    SkillHistory[]
 }
 
 model Post {
@@ -96,6 +97,47 @@ model OAuthToken {
   profileImage String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+}
+
+model ImagePreference {
+  id          String   @id @default(cuid())
+  pexelsId    Int
+  url         String
+  thumbUrl    String
+  photographer String
+  query       String
+  selected    Boolean
+  tags        Json     @default("[]")
+  width       Int
+  height      Int
+  createdAt   DateTime @default(now())
+
+  @@index([selected])
+  @@index([query])
+}
+
+model AlgoRule {
+  id         String   @id @default(cuid())
+  plateforme String
+  regle      String
+  valeur     String
+  source     String
+  confiance  String
+  actif      Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  @@index([plateforme, actif])
+}
+
+model SkillHistory {
+  id        String   @id @default(cuid())
+  skillId   String
+  contenu   String
+  version   String
+  createdAt DateTime @default(now())
+  skill     Skill    @relation(fields: [skillId], references: [id])
+
+  @@index([skillId])
 }
 
 model Job {

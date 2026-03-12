@@ -11,6 +11,8 @@ const GenerateBody = z.object({
   dealStrategy: z.string().optional(),
   dealMetric: z.string().optional(),
   mediaIds: z.array(z.string()).optional(),
+  mediaUrl: z.string().optional(),
+  imageCredit: z.string().optional(),
 })
 
 export async function POST(request: Request) {
@@ -31,6 +33,8 @@ export async function POST(request: Request) {
           ...(data.dealStrategy ? { dealStrategy: data.dealStrategy } : {}),
           ...(data.dealMetric ? { dealMetric: data.dealMetric } : {}),
           ...(data.mediaIds ? { mediaIds: data.mediaIds } : {}),
+          ...(data.mediaUrl ? { mediaUrl: data.mediaUrl } : {}),
+          ...(data.imageCredit ? { imageCredit: data.imageCredit } : {}),
         },
       },
     })

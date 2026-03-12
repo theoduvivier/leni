@@ -92,7 +92,7 @@ async function fetchLinkedInComments(postUrn: string): Promise<LinkedInComment[]
 /**
  * Process a single comment with LLM to generate a draft reply.
  */
-async function processComment(
+export async function processComment(
   comment: LinkedInComment,
   postContenu: string,
   personaSlug: string

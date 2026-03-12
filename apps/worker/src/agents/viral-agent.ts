@@ -67,7 +67,7 @@ Réponds UNIQUEMENT en JSON valide :
     validated.personaSlug,
     'linkedin_comment_trigger',
     prompt,
-    2048
+    { maxTokens: 2048, platform: validated.platform, temperature: 0.9 }
   )
 
   if (!result.trim()) {
@@ -109,7 +109,7 @@ Réponds UNIQUEMENT en JSON valide :
         persona: { connect: { slug: validated.personaSlug } },
         type: 'comment_trigger',
         module: 'M09',
-        contenu: `[${variante.style.toUpperCase()}] Score: ${variante.score_viralite}/10\nMot-clé: ${variante.mot_cle}\nLivrable: ${variante.livrable_promis}\n\n---\n\n${variante.contenu}`,
+        contenu: variante.contenu,
         statut: 'draft',
         platform: validated.platform,
       },
